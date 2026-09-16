@@ -2,18 +2,30 @@
 {% from "partials/macros.html" import health_badge %}
 {% block title %}Pipeline · Onboarding Tracker{% endblock %}
 {% block content %}
-<h1>Pipeline board</h1>
-<div class="board">
+<h1 class="text-2xl font-bold">Pipeline board</h1>
+<p class="mt-1 text-sm text-ink-3">Cards are sorted red → amber → green, then by time in stage.</p>
+<div class="mt-4 grid gap-3 md:grid-cols-5">
   {% for col in columns %}
-  <div class="col">
-    <h3>{{ col.stage.name }} <span class="muted">({{ col.cards|length }})</span></h3>
-    {% for h in col.cards %}
-    <div class="card">
-      <a href="/clients/{{ h.client.id }}">{{ h.client.name }}</a> {{ health_badge(h.health.colour) }}
-      <div class="muted">{{ h.client.owner.name }} · {{ h.days_in_stage }}d in stage</div>
-      <div class="muted">Go-live {{ h.client.target_go_live_date|date }}</div>
+  <div class="rounded-lg bg-slate-100 p-2">
+    <div class="mb-2 flex items-center justify-between px-1">
+      <h2 class="text-sm font-semibold">{{ col.stage.name }}</h2>
+      <span class="rounded-full bg-white px-2 text-xs font-semibold text-ink-2">{{ col.cards|length }}</span>
     </div>
-    {% else %}<div class="muted small">Empty</div>{% endfor %}
+    <div class="space-y-2">
+    {% for h in col.cards %}
+    <a href="/clients/{{ h.client.id }}" class="card block border-l-4 p-2.5 text-sm hover:shadow-sm
+        {{ 'border-l-red-500' if h.health.colour == 'red' else ('border-l-amber-400' if h.health.colour == 'amber' else 'border-l-emerald-500') }}">
+      <div class="flex items-start justify-between gap-2">
+        <span class="font-semibold leading-tight">{{ h.client.name }}</span>{{ health_badge(h.health.colour) }}
+      </div>
+      <div class="mt-1 text-xs text-ink-2">{{ h.client.owner.name }}</div>
+      <div class="mt-1 flex justify-between text-xs text-ink-3">
+        <span>{{ h.days_in_stage }}d in stage</span>
+        <span class="{{ 'text-red-600' if h.days_to_go_live < 0 and col.stage.key != 'live' }}">go-live {{ h.client.target_go_live_date|date }}</span>
+      </div>
+    </a>
+    {% else %}<div class="px-1 text-xs text-ink-3">Empty</div>{% endfor %}
+    </div>
   </div>
   {% endfor %}
 </div>

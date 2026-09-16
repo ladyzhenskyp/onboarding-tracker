@@ -33,7 +33,8 @@ def fmt_date(value: date | datetime | None) -> str:
 
 def humanize(value: str | None) -> str:
     """'mid_market' -> 'Mid market', 'in_progress' -> 'In progress'."""
-    return (value or "").replace("_", " ").capitalize()
+    text = (value or "").replace("_", " ").capitalize()
+    return {"Smb": "SMB", "Uat": "UAT", "Csm": "CSM"}.get(text, text)
 
 
 templates.env.filters["money"] = money

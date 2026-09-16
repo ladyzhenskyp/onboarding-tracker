@@ -2,28 +2,35 @@
 {% from "partials/macros.html" import severity %}
 {% block title %}Blockers · Onboarding Tracker{% endblock %}
 {% block content %}
-<h1>Blockers <span class="muted small">({{ rows|length }})</span></h1>
-<form method="get" action="/blockers" style="margin-bottom:16px">
-  <select name="status">{% for s in ['open','closed','all'] %}<option value="{{ s }}" {% if filters.status == s %}selected{% endif %}>{{ s|capitalize }}</option>{% endfor %}</select>
-  <select name="severity"><option value="">Any severity</option>{% for s in severities %}<option value="{{ s }}" {% if filters.severity == s %}selected{% endif %}>{{ s|capitalize }}</option>{% endfor %}</select>
-  <select name="owner_id"><option value="">Any owner</option>{% for u in users %}<option value="{{ u.id }}" {% if filters.owner_id == u.id %}selected{% endif %}>{{ u.name }}</option>{% endfor %}</select>
-  <select name="client_id"><option value="">Any client</option>{% for c in clients %}<option value="{{ c.id }}" {% if filters.client_id == c.id %}selected{% endif %}>{{ c.name }}</option>{% endfor %}</select>
-  <button class="quiet">Filter</button>
-  <a class="small" href="/export/blockers.csv" style="margin-left:12px">Export CSV</a>
+<div class="flex flex-wrap items-end justify-between gap-3">
+  <h1 class="text-2xl font-bold">Blockers <span class="text-base font-normal text-ink-3">({{ rows|length }})</span></h1>
+  <a class="link text-sm" href="/export/blockers.csv">Export CSV</a>
+</div>
+<form method="get" action="/blockers" class="mt-4 flex flex-wrap items-center gap-2">
+  <select name="status" class="input w-auto">{% for s in ['open','closed','all'] %}<option value="{{ s }}" {% if filters.status == s %}selected{% endif %}>{{ s|capitalize }}</option>{% endfor %}</select>
+  <select name="severity" class="input w-auto"><option value="">Any severity</option>{% for s in severities %}<option value="{{ s }}" {% if filters.severity == s %}selected{% endif %}>{{ s|capitalize }}</option>{% endfor %}</select>
+  <select name="owner_id" class="input w-auto"><option value="">Any owner</option>{% for u in users %}<option value="{{ u.id }}" {% if filters.owner_id == u.id %}selected{% endif %}>{{ u.name }}</option>{% endfor %}</select>
+  <select name="client_id" class="input w-auto"><option value="">Any client</option>{% for c in clients %}<option value="{{ c.id }}" {% if filters.client_id == c.id %}selected{% endif %}>{{ c.name }}</option>{% endfor %}</select>
+  <button class="btn-quiet">Filter</button>
+  <a href="/blockers" class="text-sm text-ink-3 hover:underline">Reset</a>
 </form>
-<table>
-  <tr><th>Client</th><th>Blocker</th><th>Sev</th><th>Owner</th><th>Opened</th><th class="num">Age</th><th>Status</th><th>Ref</th></tr>
+<div class="card mt-3 overflow-x-auto">
+<table class="w-full text-sm">
+  <thead><tr><th class="th">Client</th><th class="th">Blocker</th><th class="th">Sev</th><th class="th">Owner</th><th class="th">Opened</th><th class="th num">Age</th><th class="th">Status</th><th class="th">Ref</th></tr></thead>
+  <tbody>
   {% for b in rows %}
-  <tr>
-    <td><a href="/clients/{{ b.client.id }}">{{ b.client.name }}</a></td>
-    <td>{{ b.title }}{% if b.milestone %}<div class="muted small">↳ {{ b.milestone.title }}</div>{% endif %}</td>
-    <td>{{ severity(b.severity) }}</td>
-    <td>{{ b.owner.name if b.owner else '—' }}</td>
-    <td>{{ b.opened_at|date }}</td>
-    <td class="num">{{ b.age_days(now) }}d</td>
-    <td>{% if b.is_open %}Open{% else %}<span class="muted">Resolved {{ b.resolved_at|date }}</span>{% endif %}</td>
-    <td class="muted">{{ b.external_ref or '' }}</td>
+  <tr class="hover:bg-slate-50 {{ 'text-ink-3' if not b.is_open }}">
+    <td class="td"><a class="link" href="/clients/{{ b.client.id }}">{{ b.client.name }}</a></td>
+    <td class="td">{{ b.title }}{% if b.milestone %}<div class="text-xs text-ink-3">↳ {{ b.milestone.title }}</div>{% endif %}</td>
+    <td class="td">{{ severity(b.severity) }}</td>
+    <td class="td whitespace-nowrap">{{ b.owner.name if b.owner else '—' }}</td>
+    <td class="td whitespace-nowrap">{{ b.opened_at|date }}</td>
+    <td class="td num">{{ b.age_days(now) }}d</td>
+    <td class="td whitespace-nowrap">{% if b.is_open %}<span class="font-medium text-ink">Open</span>{% else %}Resolved {{ b.resolved_at|date }}{% endif %}</td>
+    <td class="td font-mono text-xs">{{ b.external_ref or '' }}</td>
   </tr>
-  {% else %}<tr><td colspan="8" class="muted">No blockers match.</td></tr>{% endfor %}
+  {% else %}<tr><td colspan="8" class="td text-ink-3">No blockers match.</td></tr>{% endfor %}
+  </tbody>
 </table>
+</div>
 {% endblock %}

@@ -1,11 +1,19 @@
 {% macro health_badge(colour) -%}
-<span class="badge {{ colour }}">{{ colour|capitalize }}</span>
+<span class="badge badge-{{ colour }}">{{ colour|capitalize }}</span>
 {%- endmacro %}
 
 {% macro severity(sev) -%}
-<span class="sev {{ sev }}">{{ sev }}</span>
+<span class="chip chip-{{ sev }}">{{ sev }}</span>
 {%- endmacro %}
 
 {% macro reasons(hits) -%}
-{% if hits %}<ul class="reasons small">{% for h in hits %}<li>{{ h.message }}</li>{% endfor %}</ul>{% endif %}
+{% if hits %}<ul class="mt-1 list-disc space-y-0.5 pl-4 text-xs text-ink-2">{% for h in hits %}<li>{{ h.message }}</li>{% endfor %}</ul>{% endif %}
+{%- endmacro %}
+
+{% macro stage_pill(name) -%}
+<span class="inline-block rounded bg-slate-100 px-2 py-0.5 text-xs font-medium text-ink-2">{{ name }}</span>
+{%- endmacro %}
+
+{% macro section_title(text, count=None) -%}
+<h2 class="mb-2 mt-6 flex items-baseline gap-2 text-base font-semibold">{{ text }}{% if count is not none %}<span class="text-sm font-normal text-ink-3">({{ count }})</span>{% endif %}</h2>
 {%- endmacro %}

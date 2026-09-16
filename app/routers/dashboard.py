@@ -14,6 +14,11 @@ from app.services.risk import RiskConfig
 router = APIRouter(tags=["dashboard"])
 
 
+def _short(stage_name: str) -> str:
+    """Axis-friendly stage label."""
+    return stage_name.split(" / ")[0]
+
+
 @router.get("/", name="dashboard")
 def dashboard(
     request: Request,
@@ -51,18 +56,39 @@ def dashboard(
         )
     )
 
+    stage_counts = q.current_stage_counts(db)
+    stage_averages = q.average_time_in_stage(db)
+    # Chart.js reads this as JSON; thresholds come from the same config the rules use.
+    chart_data = {
+        "stages": {
+            "labels": [s.name for s, _ in stage_counts],
+            "values": [n for _, n in stage_counts],
+        },
+        "health": health_counts,
+        "duration": {
+            "labels": [_short(a.stage) for a in stage_averages],
+            "avg": [a.avg_days for a in stage_averages],
+            "threshold": [
+                cfg.stage_max_days.get(s.key)
+                for s, _ in stage_counts
+                if s.name in {a.stage for a in stage_averages}
+            ],
+        },
+    }
+
     return templates.TemplateResponse(
         request,
         "dashboard.html",
         {
+            "chart_data": chart_data,
             "now": now,
             "total_clients": len(health),
-            "stage_counts": q.current_stage_counts(db),
+            "stage_counts": stage_counts,
             "health_counts": health_counts,
             "at_risk": at_risk,
             "upcoming": upcoming,
             "overdue": q.overdue_milestones(db, now.date())[:10],
             "oldest_blockers": oldest_blockers,
-            "stage_averages": q.average_time_in_stage(db),
+            "stage_averages": stage_averages,
         },
     )

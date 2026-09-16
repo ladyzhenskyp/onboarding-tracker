@@ -42,8 +42,58 @@ def _load_client(db: Session, client_id: int) -> Client:
     return client
 
 
-def _detail_url(client_id: int) -> RedirectResponse:
-    return RedirectResponse(url=f"/clients/{client_id}", status_code=303)
+def _is_htmx(request: Request) -> bool:
+    return request.headers.get("HX-Request") == "true"
+
+
+def _render_detail(
+    request: Request,
+    db: Session,
+    client_id: int,
+    now: datetime,
+    cfg: RiskConfig,
+    flash: str | None = None,
+):
+    """Render the client page. For HTMX requests only the swappable body fragment
+    is returned, so an action updates the page in place without a full reload."""
+    client = _load_client(db, client_id)
+    health = evaluate_client(client, now, cfg)
+    open_row = next((h for h in client.stage_history if h.exited_at is None), None)
+    days_in_stage = (now - (open_row.entered_at if open_row else client.created_at)).days
+    stages = ordered_stages(db)
+    context = {
+        "now": now,
+        "today": now.date(),
+        "client": client,
+        "health": health,
+        "days_in_stage": days_in_stage,
+        "days_to_go_live": (client.target_go_live_date - now.date()).days,
+        "stages": stages,
+        "next_stage": next_stage(db, client.current_stage),
+        "timeline": _timeline(client, stages, now),
+        "users": list(db.scalars(select(User).where(User.is_active).order_by(User.name))),
+        "severities": BLOCKER_SEVERITIES,
+        "open_blockers": [b for b in client.blockers if b.is_open],
+        "closed_blockers": [b for b in client.blockers if not b.is_open],
+        "flash": flash,
+    }
+    template = "clients/_body.html" if _is_htmx(request) else "clients/detail.html"
+    return templates.TemplateResponse(request, template, context)
+
+
+def _after_action(
+    request: Request,
+    db: Session,
+    client_id: int,
+    now: datetime,
+    cfg: RiskConfig,
+    flash: str | None = None,
+):
+    """HTMX callers get the refreshed fragment; plain form posts get a redirect."""
+    if _is_htmx(request):
+        return _render_detail(request, db, client_id, now, cfg, flash)
+    url = f"/clients/{client_id}" + (f"?msg={flash}" if flash else "")
+    return RedirectResponse(url=url, status_code=303)
 
 
 @router.get("", name="client_list")
@@ -65,31 +115,7 @@ def client_detail(
     now: datetime = Depends(get_now),
     cfg: RiskConfig = Depends(get_risk_config),
 ):
-    client = _load_client(db, client_id)
-    health = evaluate_client(client, now, cfg)
-    open_row = next((h for h in client.stage_history if h.exited_at is None), None)
-    days_in_stage = (now - (open_row.entered_at if open_row else client.created_at)).days
-    stages = ordered_stages(db)
-    return templates.TemplateResponse(
-        request,
-        "clients/detail.html",
-        {
-            "now": now,
-            "today": now.date(),
-            "client": client,
-            "health": health,
-            "days_in_stage": days_in_stage,
-            "days_to_go_live": (client.target_go_live_date - now.date()).days,
-            "stages": stages,
-            "next_stage": next_stage(db, client.current_stage),
-            "timeline": _timeline(client, stages, now),
-            "users": list(db.scalars(select(User).where(User.is_active).order_by(User.name))),
-            "severities": BLOCKER_SEVERITIES,
-            "open_blockers": [b for b in client.blockers if b.is_open],
-            "closed_blockers": [b for b in client.blockers if not b.is_open],
-            "flash": request.query_params.get("msg"),
-        },
-    )
+    return _render_detail(request, db, client_id, now, cfg, request.query_params.get("msg"))
 
 
 def _timeline(client: Client, stages: list[Stage], now: datetime) -> list[dict]:
@@ -111,27 +137,31 @@ def _timeline(client: Client, stages: list[Stage], now: datetime) -> list[dict]:
     return out
 
 
-# ---- actions (plain forms + redirect for now; HTMX partials arrive in Phase 3) ----
+# ---- actions: HTMX gets the refreshed fragment, plain forms get a redirect ----
 @router.post("/{client_id}/stage/advance", name="client_advance_stage")
 def client_advance_stage(
     client_id: int,
+    request: Request,
     db: Session = Depends(get_db),
+    cfg: RiskConfig = Depends(get_risk_config),
     now: datetime = Depends(get_now),
 ):
     client = _load_client(db, client_id)
     try:
         advance_stage(db, client, now)
     except StageTransitionError as e:
-        return RedirectResponse(url=f"/clients/{client_id}?msg={e}", status_code=303)
-    return _detail_url(client_id)
+        return _after_action(request, db, client_id, now, cfg, flash=str(e))
+    return _after_action(request, db, client_id, now, cfg)
 
 
 @router.post("/{client_id}/stage", name="client_move_stage")
 def client_move_stage(
     client_id: int,
+    request: Request,
     stage_key: str = Form(...),
     reason: str = Form(""),
     db: Session = Depends(get_db),
+    cfg: RiskConfig = Depends(get_risk_config),
     now: datetime = Depends(get_now),
 ):
     client = _load_client(db, client_id)
@@ -141,19 +171,21 @@ def client_move_stage(
     try:
         move_to_stage(db, client, stage, now, reason=reason or None)
     except StageTransitionError as e:
-        return RedirectResponse(url=f"/clients/{client_id}?msg={e}", status_code=303)
-    return _detail_url(client_id)
+        return _after_action(request, db, client_id, now, cfg, flash=str(e))
+    return _after_action(request, db, client_id, now, cfg)
 
 
 @router.post("/{client_id}/blockers", name="client_add_blocker")
 def client_add_blocker(
     client_id: int,
+    request: Request,
     title: str = Form(...),
     severity: str = Form(...),
     description: str = Form(""),
     external_ref: str = Form(""),
     owner_id: int | None = Form(None),
     db: Session = Depends(get_db),
+    cfg: RiskConfig = Depends(get_risk_config),
     now: datetime = Depends(get_now),
 ):
     client = _load_client(db, client_id)
@@ -170,61 +202,70 @@ def client_add_blocker(
         owner=owner,
         external_ref=external_ref,
     )
-    return _detail_url(client_id)
+    return _after_action(request, db, client_id, now, cfg)
 
 
 @router.post("/{client_id}/blockers/{blocker_id}/resolve", name="client_resolve_blocker")
 def client_resolve_blocker(
     client_id: int,
+    request: Request,
     blocker_id: int,
     db: Session = Depends(get_db),
+    cfg: RiskConfig = Depends(get_risk_config),
     now: datetime = Depends(get_now),
 ):
     blocker = db.get(Blocker, blocker_id)
     if blocker is None or blocker.client_id != client_id:
         raise HTTPException(status_code=404, detail="Blocker not found")
     actions.resolve_blocker(db, blocker, now)
-    return _detail_url(client_id)
+    return _after_action(request, db, client_id, now, cfg)
 
 
 @router.post("/{client_id}/milestones", name="client_add_milestone")
 def client_add_milestone(
     client_id: int,
+    request: Request,
     title: str = Form(...),
     due_date: date = Form(...),
     owner_id: int | None = Form(None),
     db: Session = Depends(get_db),
+    cfg: RiskConfig = Depends(get_risk_config),
+    now: datetime = Depends(get_now),
 ):
     client = _load_client(db, client_id)
     owner = db.get(User, owner_id) if owner_id else None
     actions.add_milestone(db, client, title=title, due_date=due_date, owner=owner)
-    return _detail_url(client_id)
+    return _after_action(request, db, client_id, now, cfg)
 
 
 @router.post("/{client_id}/milestones/{milestone_id}/complete", name="client_complete_milestone")
 def client_complete_milestone(
     client_id: int,
+    request: Request,
     milestone_id: int,
     db: Session = Depends(get_db),
+    cfg: RiskConfig = Depends(get_risk_config),
     now: datetime = Depends(get_now),
 ):
     m = db.get(Milestone, milestone_id)
     if m is None or m.client_id != client_id:
         raise HTTPException(status_code=404, detail="Milestone not found")
     actions.complete_milestone(db, m, now)
-    return _detail_url(client_id)
+    return _after_action(request, db, client_id, now, cfg)
 
 
 @router.post("/{client_id}/notes", name="client_add_note")
 def client_add_note(
     client_id: int,
+    request: Request,
     body: str = Form(...),
     author_id: int | None = Form(None),
     db: Session = Depends(get_db),
+    cfg: RiskConfig = Depends(get_risk_config),
     now: datetime = Depends(get_now),
 ):
     client = _load_client(db, client_id)
     author = db.get(User, author_id) if author_id else None
     if body.strip():
         actions.add_note(db, client, body=body, now=now, author=author)
-    return _detail_url(client_id)
+    return _after_action(request, db, client_id, now, cfg)

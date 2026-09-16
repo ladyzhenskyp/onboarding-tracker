@@ -112,11 +112,11 @@ def test_add_and_resolve_blocker_changes_health(client):
         data={"title": "Prod cert expired", "severity": "critical", "external_ref": "IMPL-777"},
     )
     page = client.get(f"/clients/{cid}").text
-    assert "badge red" in page and "Prod cert expired" in page
+    assert "badge-red" in page and "Prod cert expired" in page
     with SessionLocal() as db:
         bid = db.scalar(select(Blocker.id).where(Blocker.title == "Prod cert expired"))
     client.post(f"/clients/{cid}/blockers/{bid}/resolve")
-    assert "badge green" in client.get(f"/clients/{cid}").text
+    assert "badge-green" in client.get(f"/clients/{cid}").text
 
 
 def test_add_milestone_and_note(client):
@@ -127,3 +127,29 @@ def test_add_milestone_and_note(client):
     client.post(f"/clients/{cid}/notes", data={"body": "Note from the test suite"})
     page = client.get(f"/clients/{cid}").text
     assert "Signed SOW" in page and "Note from the test suite" in page
+
+
+# ---- HTMX --------------------------------------------------------------------
+HX = {"HX-Request": "true"}
+
+
+def test_htmx_action_returns_fragment_not_redirect(client):
+    cid = _client_id("Granite Peak Partners")
+    r = client.post(f"/clients/{cid}/notes", data={"body": "HTMX note"}, headers=HX)
+    assert r.status_code == 200  # fragment, not a 303
+    assert r.text.lstrip().startswith('<div id="client-body">')
+    assert "<html" not in r.text  # only the swappable block, not the whole page
+    assert "HTMX note" in r.text
+
+
+def test_htmx_stage_error_is_flashed_in_fragment(client):
+    cid = _client_id("Vantage Point Research")  # live
+    r = client.post(f"/clients/{cid}/stage/advance", headers=HX)
+    assert r.status_code == 200
+    assert "already Live" in r.text
+
+
+def test_dashboard_embeds_chart_data(client):
+    r = client.get("/")
+    assert '"stages"' in r.text and '"threshold"' in r.text
+    assert "chart-duration" in r.text

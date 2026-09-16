@@ -5,9 +5,8 @@ account moves through a fixed onboarding pipeline
 (**Kickoff → Discovery/Config → UAT → Prod → Live**) and the team can see at a
 glance which accounts are at risk — and *why*.
 
-> Status: Phase 2 complete — working web app (dashboard, pipeline board, client
-> detail with actions, blockers, team view, CSV export). Styling, HTMX and
-> deployment are next.
+> Status: Phase 3 complete — styled with Tailwind, HTMX inline updates on the
+> client page, Chart.js dashboard charts. Deployment and CI are next.
 
 ## Stack
 
