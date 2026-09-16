@@ -1,11 +1,22 @@
 # Analytical SQL
 
 Hand-written, reviewable SQL for the queries the app depends on. Each file
-has a header comment describing inputs and the shape of the result. ORM
-equivalents live in `app/services/`. Written to run on both PostgreSQL and
-SQLite unless noted.
+has a header comment listing its parameters. These are written for
+**PostgreSQL** (the production database); the app itself uses the
+dialect-neutral ORM versions in `app/services/queries.py` so the same code
+runs on SQLite locally.
 
-- `at_risk_accounts.sql`   — health colour + reason per client (Phase 1)
-- `time_in_stage.sql`      — days in current stage and average per stage (Phase 1)
-- `overdue_milestones.sql` — open milestones past due date (Phase 1)
-- `owner_workload.sql`     — accounts and at-risk accounts per owner (Phase 1)
+| File                     | Question it answers                                            |
+|--------------------------|----------------------------------------------------------------|
+| `at_risk_accounts.sql`   | Which clients are red/amber/green, and why? (mirrors the rule engine) |
+| `time_in_stage.sql`      | How long has each client been in its stage; what's the average per stage? |
+| `overdue_milestones.sql` | Which open milestones are past due, and by how much?           |
+| `owner_workload.sql`     | How many accounts (and severe blockers) does each owner carry? |
+
+Run one against a local Postgres with, for example:
+
+```bash
+psql "$DATABASE_URL" -v today="'2026-09-15'" -v now="'2026-09-15 12:00'" -f queries/overdue_milestones.sql
+```
+
+(psql uses `:today` syntax for variables; the app binds the same names.)

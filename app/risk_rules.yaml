@@ -1,0 +1,21 @@
+# Thresholds for the risk engine. See docs/risk-rules.md for the rule definitions.
+# Edit these and restart the app; no code change needed.
+
+# Rule 2: an open HIGH blocker older than this many days is Red.
+high_blocker_max_age_days: 7
+
+# Rule 3: this many (or more) overdue milestones is Amber.
+overdue_milestone_threshold: 2
+
+# Rules 4/5: a go-live within this many days while not in a safe stage is Amber;
+# a go-live already passed while not in a safe stage is Red.
+go_live_warning_days: 14
+go_live_safe_stages: [prod, live]
+
+# Rule 6: more than this many days in a stage is Amber. null = never flagged.
+stage_max_days:
+  kickoff: 10
+  discovery: 30
+  uat: 21
+  prod: 14
+  live: null

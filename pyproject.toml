@@ -12,6 +12,8 @@ extend-exclude = ["alembic/versions"]
 [tool.ruff.lint]
 # E/W = pycodestyle, F = pyflakes, I = isort, B = bugbear, UP = pyupgrade
 select = ["E", "W", "F", "I", "B", "UP"]
+# UP017 wants datetime.UTC (3.11+); we keep timezone.utc so the code also runs on 3.10.
+ignore = ["UP017"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

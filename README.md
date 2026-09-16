@@ -5,8 +5,8 @@ account moves through a fixed onboarding pipeline
 (**Kickoff → Discovery/Config → UAT → Prod → Live**) and the team can see at a
 glance which accounts are at risk — and *why*.
 
-> Status: Phase 0 (design). See `docs/` for the ERD, schema notes and the
-> at-risk rules spec.
+> Status: Phase 1 (data layer) complete — models, migrations, risk engine with
+> tests, seed data and analytical SQL. Web UI is next.
 
 ## Stack
 
@@ -35,9 +35,21 @@ tests/          pytest suite
 ## Running locally
 
 ```bash
-python3 -m venv .venv && source .venv/bin/activate
+python3.12 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env
-# (Phase 1+) alembic upgrade head && python scripts/seed.py
-# (Phase 2+) uvicorn app.main:app --reload
+cp .env.example .env          # defaults to a local SQLite file, tracker.db
+alembic upgrade head          # create the tables
+python scripts/seed.py        # 20 fictional clients with a realistic risk mix
+pytest                        # risk-engine tests
+ruff check . && ruff format --check .
 ```
+
+Web server (Phase 2): `uvicorn app.main:app --reload`
+
+## How health is computed
+
+Health is never stored. `app/services/risk.py` evaluates each client against
+the rules in [`docs/risk-rules.md`](docs/risk-rules.md) using thresholds from
+[`app/risk_rules.yaml`](app/risk_rules.yaml), and reports every rule that
+fired so the UI can say *why* an account is red or amber. The same logic is
+expressed as reviewable SQL in [`queries/at_risk_accounts.sql`](queries/at_risk_accounts.sql).

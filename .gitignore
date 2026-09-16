@@ -27,3 +27,4 @@ venv/
 dist/
 build/
 node_modules/
+*.db-journal
