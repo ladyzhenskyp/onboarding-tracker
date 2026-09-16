@@ -229,6 +229,12 @@ NEXT_STEPS = [
     "final sign-off",
 ]
 REASONS = ["quarter-end close", "an internal audit", "a key contact on leave", "vendor delays"]
+BLOCKER_DESCRIPTIONS = [
+    "Raised on the {day} sync. Client-side owner identified; waiting on their IT change window.",
+    "Reproduced in the UAT environment. Engineering ticket linked; workaround shared with client.",
+    "Blocks the next milestone until resolved. Escalated to the client's project sponsor.",
+    "Root cause traced to a configuration mismatch between UAT and Prod. Fix scheduled.",
+]
 
 
 def wipe(db: Session) -> None:
@@ -309,7 +315,7 @@ def seed_blockers(client: Client, sc: Scenario, now: datetime, owners: list[User
         client.blockers.append(
             Blocker(
                 title=spec.title,
-                description=fake.paragraph(nb_sentences=2),
+                description=random.choice(BLOCKER_DESCRIPTIONS).format(day=fake.day_of_week()),
                 severity=spec.severity,
                 owner=random.choice(owners),
                 opened_at=opened,

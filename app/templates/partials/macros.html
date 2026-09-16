@@ -1,0 +1,11 @@
+{% macro health_badge(colour) -%}
+<span class="badge {{ colour }}">{{ colour|capitalize }}</span>
+{%- endmacro %}
+
+{% macro severity(sev) -%}
+<span class="sev {{ sev }}">{{ sev }}</span>
+{%- endmacro %}
+
+{% macro reasons(hits) -%}
+{% if hits %}<ul class="reasons small">{% for h in hits %}<li>{{ h.message }}</li>{% endfor %}</ul>{% endif %}
+{%- endmacro %}

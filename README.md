@@ -5,8 +5,9 @@ account moves through a fixed onboarding pipeline
 (**Kickoff → Discovery/Config → UAT → Prod → Live**) and the team can see at a
 glance which accounts are at risk — and *why*.
 
-> Status: Phase 1 (data layer) complete — models, migrations, risk engine with
-> tests, seed data and analytical SQL. Web UI is next.
+> Status: Phase 2 complete — working web app (dashboard, pipeline board, client
+> detail with actions, blockers, team view, CSV export). Styling, HTMX and
+> deployment are next.
 
 ## Stack
 
@@ -44,7 +45,20 @@ pytest                        # risk-engine tests
 ruff check . && ruff format --check .
 ```
 
-Web server (Phase 2): `uvicorn app.main:app --reload`
+Then start the server and open http://127.0.0.1:8000:
+
+```bash
+uvicorn app.main:app --reload
+```
+
+| Page | URL |
+|------|-----|
+| Dashboard — counts, at-risk list with reasons, upcoming go-lives, overdue milestones, oldest blockers | `/` |
+| Pipeline board — one column per stage | `/pipeline` |
+| Client detail — stage timeline, milestones, blockers, notes, meetings; advance/move stage, add/resolve blockers, add milestones and notes | `/clients/{id}` |
+| Blockers — filter by status, severity, owner, client | `/blockers` |
+| Team — workload and health per owner | `/team` |
+| CSV export | `/export/pipeline.csv`, `/export/blockers.csv` |
 
 ## How health is computed
 

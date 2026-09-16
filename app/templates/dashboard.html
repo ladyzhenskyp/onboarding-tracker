@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import health_badge, severity, reasons %}
+{% block title %}Dashboard · Onboarding Tracker{% endblock %}
+{% block content %}
+<h1>Dashboard <span class="muted small">as of {{ now|date }}</span></h1>
+
+<div class="tiles">
+  <div class="tile"><div class="n">{{ total_clients }}</div><div class="l">Accounts</div></div>
+  <div class="tile"><div class="n" style="color:var(--red)">{{ health_counts.red }}</div><div class="l">Red</div></div>
+  <div class="tile"><div class="n" style="color:var(--amber)">{{ health_counts.amber }}</div><div class="l">Amber</div></div>
+  <div class="tile"><div class="n" style="color:var(--green)">{{ health_counts.green }}</div><div class="l">Green</div></div>
+  {% for stage, n in stage_counts %}
+  <div class="tile"><div class="n">{{ n }}</div><div class="l">{{ stage.name }}</div></div>
+  {% endfor %}
+</div>
+
+<h2>At-risk accounts ({{ at_risk|length }})</h2>
+<table>
+  <tr><th>Client</th><th>Health</th><th>Stage</th><th class="num">Days in stage</th><th class="num">Go-live in</th><th>Owner</th><th>Why</th></tr>
+  {% for h in at_risk %}
+  <tr>
+    <td><a href="/clients/{{ h.client.id }}">{{ h.client.name }}</a><div class="muted small">{{ h.client.segment|humanize }}</div></td>
+    <td>{{ health_badge(h.health.colour) }}</td>
+    <td>{{ h.client.current_stage.name }}</td>
+    <td class="num">{{ h.days_in_stage }}</td>
+    <td class="num">{{ h.days_to_go_live }}d</td>
+    <td>{{ h.client.owner.name }}</td>
+    <td>{{ reasons(h.health.reasons) }}</td>
+  </tr>
+  {% else %}<tr><td colspan="7" class="muted">Nothing at risk.</td></tr>{% endfor %}
+</table>
+
+<div class="grid2">
+  <div>
+    <h2>Go-lives in the next 30 days</h2>
+    <table>
+      <tr><th>Client</th><th>Target</th><th>Stage</th><th>Health</th></tr>
+      {% for h in upcoming %}
+      <tr><td><a href="/clients/{{ h.client.id }}">{{ h.client.name }}</a></td><td>{{ h.client.target_go_live_date|date }}</td><td>{{ h.client.current_stage.name }}</td><td>{{ health_badge(h.health.colour) }}</td></tr>
+      {% else %}<tr><td colspan="4" class="muted">None scheduled.</td></tr>{% endfor %}
+    </table>
+
+    <h2>Average time in stage (completed visits)</h2>
+    <table>
+      <tr><th>Stage</th><th class="num">Visits</th><th class="num">Avg days</th><th class="num">Max days</th></tr>
+      {% for s in stage_averages %}
+      <tr><td>{{ s.stage }}</td><td class="num">{{ s.completed_visits }}</td><td class="num">{{ s.avg_days }}</td><td class="num">{{ s.max_days }}</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+  <div>
+    <h2>Overdue milestones</h2>
+    <table>
+      <tr><th>Client</th><th>Milestone</th><th>Due</th><th>Owner</th></tr>
+      {% for m in overdue %}
+      <tr><td><a href="/clients/{{ m.client.id }}">{{ m.client.name }}</a></td><td>{{ m.title }}</td><td>{{ m.due_date|date }}</td><td>{{ m.owner.name if m.owner else '—' }}</td></tr>
+      {% else %}<tr><td colspan="4" class="muted">None overdue.</td></tr>{% endfor %}
+    </table>
+
+    <h2>Oldest open blockers</h2>
+    <table>
+      <tr><th>Client</th><th>Blocker</th><th>Sev</th><th class="num">Age</th><th>Ref</th></tr>
+      {% for b in oldest_blockers %}
+      <tr><td><a href="/clients/{{ b.client.id }}">{{ b.client.name }}</a></td><td>{{ b.title }}</td><td>{{ severity(b.severity) }}</td><td class="num">{{ b.age_days(now) }}d</td><td class="muted">{{ b.external_ref or '' }}</td></tr>
+      {% else %}<tr><td colspan="5" class="muted">No open blockers.</td></tr>{% endfor %}
+    </table>
+  </div>
+</div>
+
+<p class="small muted" style="margin-top:24px">Export: <a href="/export/pipeline.csv">pipeline.csv</a> · <a href="/export/blockers.csv">blockers.csv</a></p>
+{% endblock %}

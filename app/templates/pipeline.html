@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import health_badge %}
+{% block title %}Pipeline · Onboarding Tracker{% endblock %}
+{% block content %}
+<h1>Pipeline board</h1>
+<div class="board">
+  {% for col in columns %}
+  <div class="col">
+    <h3>{{ col.stage.name }} <span class="muted">({{ col.cards|length }})</span></h3>
+    {% for h in col.cards %}
+    <div class="card">
+      <a href="/clients/{{ h.client.id }}">{{ h.client.name }}</a> {{ health_badge(h.health.colour) }}
+      <div class="muted">{{ h.client.owner.name }} · {{ h.days_in_stage }}d in stage</div>
+      <div class="muted">Go-live {{ h.client.target_go_live_date|date }}</div>
+    </div>
+    {% else %}<div class="muted small">Empty</div>{% endfor %}
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

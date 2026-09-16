@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import health_badge %}
+{% block title %}Team · Onboarding Tracker{% endblock %}
+{% block content %}
+<h1>Team workload</h1>
+<table>
+  <tr><th>Owner</th><th>Role</th><th class="num">Accounts</th><th class="num">Onboarding</th><th class="num">Red</th><th class="num">Amber</th><th class="num">Green</th><th class="num">Severe blockers</th><th class="num">Contract value</th></tr>
+  {% for r in rows %}
+  <tr>
+    <td>{{ r.w.owner.name }}</td>
+    <td>{{ r.w.owner.role|humanize }}</td>
+    <td class="num">{{ r.w.accounts }}</td>
+    <td class="num">{{ r.w.onboarding }}</td>
+    <td class="num" style="color:var(--red)">{{ r.red }}</td>
+    <td class="num" style="color:var(--amber)">{{ r.amber }}</td>
+    <td class="num" style="color:var(--green)">{{ r.green }}</td>
+    <td class="num">{{ r.w.accounts_with_severe_blocker }}</td>
+    <td class="num">{{ r.w.contract_value|money }}</td>
+  </tr>
+  {% endfor %}
+</table>
+
+{% for r in rows if r.clients %}
+<h2>{{ r.w.owner.name }}</h2>
+<table>
+  <tr><th>Client</th><th>Stage</th><th class="num">Days in stage</th><th>Health</th></tr>
+  {% for h in r.clients %}
+  <tr><td><a href="/clients/{{ h.client.id }}">{{ h.client.name }}</a></td><td>{{ h.client.current_stage.name }}</td><td class="num">{{ h.days_in_stage }}</td><td>{{ health_badge(h.health.colour) }}</td></tr>
+  {% endfor %}
+</table>
+{% endfor %}
+{% endblock %}

@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import health_badge %}
+{% block title %}Clients · Onboarding Tracker{% endblock %}
+{% block content %}
+<h1>Clients <span class="muted small">({{ rows|length }})</span></h1>
+<table>
+  <tr><th>Client</th><th>Segment</th><th class="num">Contract</th><th>Owner</th><th>Stage</th><th class="num">Days in stage</th><th>Kickoff</th><th>Target go-live</th><th>Health</th></tr>
+  {% for h in rows %}
+  <tr>
+    <td><a href="/clients/{{ h.client.id }}">{{ h.client.name }}</a></td>
+    <td>{{ h.client.segment|humanize }}</td>
+    <td class="num">{{ h.client.contract_value|money }}</td>
+    <td>{{ h.client.owner.name }}</td>
+    <td>{{ h.client.current_stage.name }}</td>
+    <td class="num">{{ h.days_in_stage }}</td>
+    <td>{{ h.client.kickoff_date|date }}</td>
+    <td>{{ h.client.target_go_live_date|date }}</td>
+    <td>{{ health_badge(h.health.colour) }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% endblock %}

@@ -15,6 +15,10 @@ select = ["E", "W", "F", "I", "B", "UP"]
 # UP017 wants datetime.UTC (3.11+); we keep timezone.utc so the code also runs on 3.10.
 ignore = ["UP017"]
 
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI declares dependencies as call-defaults (Depends/Query/Form): that is by design.
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Query", "fastapi.Form", "fastapi.Path"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
