@@ -20,13 +20,26 @@ glance which accounts are at risk — and *why*.
 | Tests / CI | pytest, ruff, GitHub Actions             |                                                          |
 | Deploy     | Docker → Render (free tier) + Postgres   |                                                          |
 
+## Documentation
+
+| Doc | What it covers |
+|---|---|
+| [`docs/architecture.md`](docs/architecture.md) | Request flow, the three layers, why each tool, key design decisions |
+| [`docs/user-guide.md`](docs/user-guide.md) | The pipeline, how health is computed, each page, working an account |
+| [`docs/schema-design.md`](docs/schema-design.md) | Normalisation, lookup tables vs enums, stage history, indexes |
+| [`docs/erd.md`](docs/erd.md) | Entity-relationship diagram |
+| [`docs/risk-rules.md`](docs/risk-rules.md) | The at-risk rules spec and test cases |
+| [`docs/development.md`](docs/development.md) | Setup, commands, conventions, how to add rules/columns/pages |
+| [`docs/glossary.md`](docs/glossary.md) | Plain-language definitions of every term above |
+| [`queries/README.md`](queries/README.md) | The hand-written analytical SQL |
+
 ## Repo layout
 
 ```
 app/            FastAPI application (models, routers, services, templates)
 db/schema.sql   Hand-written DDL — the source of truth for the data model
 queries/        Reviewable analytical SQL (at-risk, time-in-stage, workload)
-docs/           ERD, schema design notes, risk-rules spec
+docs/           Architecture, user guide, schema design, ERD, risk rules, dev guide, glossary
 alembic/        Migrations
 scripts/        Seed script and utilities
 tests/          pytest suite

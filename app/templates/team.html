@@ -2,20 +2,20 @@
 {% from "partials/macros.html" import health_badge, stage_pill, section_title %}
 {% block title %}Team · Onboarding Tracker{% endblock %}
 {% block content %}
-<h1 class="text-2xl font-bold">Team workload</h1>
+<h1 class="font-display text-3xl font-semibold">Team workload</h1>
 <div class="card mt-4 overflow-x-auto">
-<table class="w-full text-sm">
-  <thead><tr><th class="th">Owner</th><th class="th">Role</th><th class="th num">Accounts</th><th class="th num">Onboarding</th><th class="th num">Red</th><th class="th num">Amber</th><th class="th num">Green</th><th class="th num">Severe blockers</th><th class="th num">Contract value</th></tr></thead>
+<table class="sortable w-full text-sm">
+  <thead><tr><th class="th th-l">Owner</th><th class="th">Role</th><th class="th num">Accounts</th><th class="th num">Onboarding</th><th class="th num">Red</th><th class="th num">Amber</th><th class="th num">Green</th><th class="th num">Severe blockers</th><th class="th num">Contract value</th></tr></thead>
   <tbody>
   {% for r in rows %}
-  <tr class="hover:bg-slate-50">
+  <tr class="hover:bg-sand/40">
     <td class="td font-medium">{{ r.w.owner.name }}</td>
-    <td class="td text-ink-2">{{ r.w.owner.role|humanize }}</td>
+    <td class="td tc text-ink-2">{{ r.w.owner.role|humanize }}</td>
     <td class="td num">{{ r.w.accounts }}</td>
     <td class="td num">{{ r.w.onboarding }}</td>
-    <td class="td num font-semibold text-red-600">{{ r.red or '' }}</td>
-    <td class="td num font-semibold text-amber-600">{{ r.amber or '' }}</td>
-    <td class="td num font-semibold text-emerald-600">{{ r.green or '' }}</td>
+    <td class="td num font-semibold text-health-red">{{ r.red or '' }}</td>
+    <td class="td num font-semibold text-health-amber">{{ r.amber or '' }}</td>
+    <td class="td num font-semibold text-health-green">{{ r.green or '' }}</td>
     <td class="td num">{{ r.w.accounts_with_severe_blocker or '' }}</td>
     <td class="td num">{{ r.w.contract_value|money }}</td>
   </tr>
@@ -28,10 +28,10 @@
 {% for r in rows if r.clients %}
 <div>
   {{ section_title(r.w.owner.name, r.clients|length) }}
-  <div class="card overflow-x-auto"><table class="w-full text-sm">
-    <thead><tr><th class="th">Client</th><th class="th">Stage</th><th class="th num">Days in stage</th><th class="th">Health</th></tr></thead>
+  <div class="card overflow-x-auto"><table class="sortable w-full text-sm">
+    <thead><tr><th class="th th-l">Client</th><th class="th">Stage</th><th class="th num">Days in stage</th><th class="th">Health</th></tr></thead>
     <tbody>{% for h in r.clients %}
-    <tr><td class="td"><a class="link" href="/clients/{{ h.client.id }}">{{ h.client.name }}</a></td><td class="td">{{ stage_pill(h.client.current_stage.name) }}</td><td class="td num">{{ h.days_in_stage }}</td><td class="td">{{ health_badge(h.health.colour) }}</td></tr>
+    <tr><td class="td"><a class="link" href="/clients/{{ h.client.id }}">{{ h.client.name }}</a></td><td class="td tc">{{ stage_pill(h.client.current_stage.name) }}</td><td class="td num">{{ h.days_in_stage }}</td><td class="td tc">{{ health_badge(h.health.colour) }}</td></tr>
     {% endfor %}</tbody>
   </table></div>
 </div>

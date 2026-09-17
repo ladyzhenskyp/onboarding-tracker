@@ -2,31 +2,94 @@
 {% from "partials/macros.html" import health_badge %}
 {% block title %}Pipeline · Onboarding Tracker{% endblock %}
 {% block content %}
-<h1 class="text-2xl font-bold">Pipeline board</h1>
-<p class="mt-1 text-sm text-ink-3">Cards are sorted red → amber → green, then by time in stage.</p>
-<div class="mt-4 grid gap-3 md:grid-cols-5">
+{% set short = {'critical_blocker': 'Critical blocker', 'stale_high_blocker': 'Stale high blocker',
+                'overdue_milestones': 'Overdue milestones', 'go_live_approaching': 'Go-live soon',
+                'go_live_missed': 'Go-live missed', 'stage_overdue': 'Over stage limit'} %}
+<div class="flex flex-wrap items-end justify-between gap-3">
+  <div>
+    <div class="kicker">Kickoff → Live</div>
+    <h1 class="font-display text-3xl font-semibold">Pipeline board</h1>
+  </div>
+  {# health filter: hides cards client-side; counts in the strip below update too #}
+  <div class="flex items-center gap-1 rounded-full border border-line bg-surface p-1 text-sm" role="group" aria-label="Filter by health">
+    <button type="button" data-filter="all" class="filter-btn rounded-full px-3 py-1 font-semibold" aria-pressed="true">All</button>
+    <button type="button" data-filter="red" class="filter-btn rounded-full px-3 py-1 font-semibold text-health-red" aria-pressed="false">Red</button>
+    <button type="button" data-filter="amber" class="filter-btn rounded-full px-3 py-1 font-semibold text-health-amber" aria-pressed="false">Amber</button>
+    <button type="button" data-filter="green" class="filter-btn rounded-full px-3 py-1 font-semibold text-health-green" aria-pressed="false">Green</button>
+  </div>
+</div>
+
+{# ---- summary strip: one cell per stage with count + health mix ---- #}
+<ol class="mt-5 grid grid-cols-5 gap-1.5">
   {% for col in columns %}
-  <div class="rounded-lg bg-slate-100 p-2">
-    <div class="mb-2 flex items-center justify-between px-1">
-      <h2 class="text-sm font-semibold">{{ col.stage.name }}</h2>
-      <span class="rounded-full bg-white px-2 text-xs font-semibold text-ink-2">{{ col.cards|length }}</span>
+  {% set reds = col.cards|selectattr('health.colour','equalto','red')|list|length %}
+  {% set ambers = col.cards|selectattr('health.colour','equalto','amber')|list|length %}
+  {% set greens = col.cards|selectattr('health.colour','equalto','green')|list|length %}
+  <li class="card px-3 py-2.5">
+    <div class="flex items-baseline justify-between">
+      <span class="font-display text-sm font-semibold">{{ col.stage.name.split(' / ')[0] }}</span>
+      <span class="font-num text-xl font-semibold tabular-nums" data-count="{{ col.stage.key }}">{{ col.cards|length }}</span>
     </div>
-    <div class="space-y-2">
+    <div class="mt-2 flex h-1.5 overflow-hidden rounded-full bg-sand" title="{{ reds }} red · {{ ambers }} amber · {{ greens }} green">
+      {% if reds %}<span class="bg-health-red" style="flex:{{ reds }}"></span>{% endif %}
+      {% if ambers %}<span class="bg-health-amber" style="flex:{{ ambers }}"></span>{% endif %}
+      {% if greens %}<span class="bg-health-green" style="flex:{{ greens }}"></span>{% endif %}
+    </div>
+  </li>
+  {% endfor %}
+</ol>
+
+{# ---- columns: one line per account, details on hover ---- #}
+<div class="mt-3 grid gap-1.5 md:grid-cols-5">
+  {% for col in columns %}
+  <div class="rounded-lg bg-sand/50 p-1.5" data-column="{{ col.stage.key }}">
+    <ul class="space-y-1">
     {% for h in col.cards %}
-    <a href="/clients/{{ h.client.id }}" class="card block border-l-4 p-2.5 text-sm hover:shadow-sm
-        {{ 'border-l-red-500' if h.health.colour == 'red' else ('border-l-amber-400' if h.health.colour == 'amber' else 'border-l-emerald-500') }}">
-      <div class="flex items-start justify-between gap-2">
-        <span class="font-semibold leading-tight">{{ h.client.name }}</span>{{ health_badge(h.health.colour) }}
-      </div>
-      <div class="mt-1 text-xs text-ink-2">{{ h.client.owner.name }}</div>
-      <div class="mt-1 flex justify-between text-xs text-ink-3">
-        <span>{{ h.days_in_stage }}d in stage</span>
-        <span class="{{ 'text-red-600' if h.days_to_go_live < 0 and col.stage.key != 'live' }}">go-live {{ h.client.target_go_live_date|date }}</span>
-      </div>
-    </a>
-    {% else %}<div class="px-1 text-xs text-ink-3">Empty</div>{% endfor %}
-    </div>
+    <li class="pipeline-card" data-health="{{ h.health.colour }}">
+      <a href="/clients/{{ h.client.id }}" class="card group block border-l-[3px] px-2.5 py-2 text-sm hover:shadow-md
+          {{ 'border-l-health-red' if h.health.colour == 'red' else ('border-l-health-amber' if h.health.colour == 'amber' else 'border-l-health-green') }}"
+         title="{{ h.client.owner.name }} · {{ h.days_in_stage }}d in stage · go-live {{ h.client.target_go_live_date|date }}{% for r in h.health.reasons %}
+• {{ r.message }}{% endfor %}">
+        <div class="flex items-center justify-between gap-2">
+          <span class="truncate font-semibold leading-tight">{{ h.client.name }}</span>
+          <span class="shrink-0 font-num text-xs tabular-nums text-ink-3">{{ h.days_in_stage }}d</span>
+        </div>
+        <div class="mt-0.5 flex items-center justify-between gap-2 text-xs text-ink-3">
+          <span class="shrink-0">{{ h.client.owner.name.split(' ')[0] }}</span>
+          {% if h.health.colour != 'green' %}<span class="truncate font-medium {{ 'text-health-red' if h.health.colour == 'red' else 'text-health-amber' }}">{{ short[h.health.reasons[0].rule_id] }}{% if h.health.reasons|length > 1 %} +{{ h.health.reasons|length - 1 }}{% endif %}</span>{% endif %}
+        </div>
+      </a>
+    </li>
+    {% endfor %}
+    <li class="empty-note hidden px-2 py-1 text-xs text-ink-3">Nothing here</li>
+    </ul>
   </div>
   {% endfor %}
 </div>
+<p class="mt-3 text-xs text-ink-3">Each card shows the account, days in stage, owner, and — when at risk — the leading reason. Hover for the full detail; click to open.</p>
+
+<script>
+  (function () {
+    const buttons = document.querySelectorAll('.filter-btn');
+    function apply(filter) {
+      buttons.forEach(b => {
+        const on = b.dataset.filter === filter;
+        b.setAttribute('aria-pressed', on);
+        b.classList.toggle('bg-sand', on);
+      });
+      document.querySelectorAll('[data-column]').forEach(col => {
+        let visible = 0;
+        col.querySelectorAll('.pipeline-card').forEach(li => {
+          const show = filter === 'all' || li.dataset.health === filter;
+          li.hidden = !show; if (show) visible++;
+        });
+        col.querySelector('.empty-note').hidden = visible > 0;
+        const c = document.querySelector(`[data-count="${col.dataset.column}"]`);
+        if (c) c.textContent = visible;
+      });
+    }
+    buttons.forEach(b => b.addEventListener('click', () => apply(b.dataset.filter)));
+    apply('all');
+  })();
+</script>
 {% endblock %}

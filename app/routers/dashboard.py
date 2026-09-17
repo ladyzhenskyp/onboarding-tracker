@@ -61,7 +61,7 @@ def dashboard(
     # Chart.js reads this as JSON; thresholds come from the same config the rules use.
     chart_data = {
         "stages": {
-            "labels": [s.name for s, _ in stage_counts],
+            "labels": [_short(s.name) for s, _ in stage_counts],
             "values": [n for _, n in stage_counts],
         },
         "health": health_counts,

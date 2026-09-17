@@ -6,45 +6,80 @@
   <title>{% block title %}Onboarding Tracker{% endblock %}</title>
   {# Tailwind Play CDN: compiles utility classes in the browser. No build step, which is
      right for a portfolio demo; a production app would precompile with the Tailwind CLI. #}
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@500;600;700&display=swap">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
+    // Design tokens. Warm "paper" neutrals, one ink-blue accent, and health colours
+    // kept separate from the accent so red/amber/green always mean status.
     tailwind.config = {
-      theme: { extend: { colors: {
-        brand: { DEFAULT: '#0e7c7b', dark: '#0a5f5e', soft: '#e0f1f0' },
-        ink: { DEFAULT: '#1b2a41', 2: '#4a5768', 3: '#7b8794' },
-      }, fontFamily: { sans: ['-apple-system','BlinkMacSystemFont','Segoe UI','Helvetica','Arial','sans-serif'] } } }
+      theme: { extend: {
+        colors: {
+          paper:   '#f6f1e8',
+          surface: '#fffdf8',
+          sand:    { DEFAULT: '#efe7da', deep: '#e4d9c7' },
+          line:    { DEFAULT: '#e3d9c9', soft: '#ede5d7' },
+          ink:     { DEFAULT: '#2a2420', 2: '#5a5148', 3: '#8b8074' },
+          brand:   { DEFAULT: '#2b4a6f', dark: '#1e3652', soft: '#e3eaf3', tint: '#f0f4f9' },
+          health:  { red: '#a3271c', redsoft: '#f7e1dc', amber: '#a15b08', ambersoft: '#f8e9cf', green: '#1f6b47', greensoft: '#dcefe2' },
+        },
+        fontFamily: {
+          display: ['Fraunces', 'Georgia', 'serif'],
+          sans: ['"Source Sans 3"', '-apple-system', 'Segoe UI', 'Helvetica', 'Arial', 'sans-serif'],
+          mono: ['"IBM Plex Mono"', 'Menlo', 'Consolas', 'monospace'],
+          num: ['Inter', '-apple-system', 'Segoe UI', 'Helvetica', 'Arial', 'sans-serif'],
+        },
+        boxShadow: { card: '0 1px 2px rgba(42,36,32,.05), 0 0 0 1px rgba(42,36,32,.04)' },
+      } }
     }
   </script>
   <style type="text/tailwindcss">
-    @layer components {
-      .badge { @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold text-white; }
-      .badge-red { @apply bg-red-600; } .badge-amber { @apply bg-amber-500; } .badge-green { @apply bg-emerald-600; }
-      .chip { @apply inline-block rounded px-1.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide; }
-      .chip-critical { @apply bg-red-100 text-red-700; } .chip-high { @apply bg-orange-100 text-orange-700; }
-      .chip-medium { @apply bg-amber-100 text-amber-800; } .chip-low { @apply bg-slate-100 text-slate-600; }
-      .card { @apply rounded-lg border border-slate-200 bg-white; }
-      .th { @apply px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-ink-3; }
-      .td { @apply px-3 py-2 align-top border-t border-slate-100; }
-      .num { @apply text-right tabular-nums; }
-      .btn { @apply inline-flex items-center rounded-md bg-brand px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-dark focus:outline-none focus:ring-2 focus:ring-brand/40 disabled:opacity-50; }
-      .btn-quiet { @apply inline-flex items-center rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-ink hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-brand/40; }
-      .btn-sm { @apply whitespace-nowrap px-2 py-1 text-xs; }
-      .input { @apply w-full rounded-md border border-slate-300 px-2.5 py-1.5 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30; }
-      .link { @apply font-medium text-ink hover:text-brand hover:underline; }
-      .navlink { @apply rounded-md px-3 py-1.5 text-sm font-medium text-ink-2 hover:bg-slate-100 hover:text-ink; }
-      .navlink-active { @apply bg-brand-soft text-brand; }
+    @layer base {
+      :root { --hover-ms: 750ms; }   /* hover fade length — one place to tune */
+      h1, h2, h3 { @apply font-display; font-variation-settings: "opsz" 72; }
+      body { font-size: 15.5px; }
+      a, button, .navlink, .link, .card, tr { transition: color var(--hover-ms) ease, background-color var(--hover-ms) ease, border-color var(--hover-ms) ease, text-decoration-color var(--hover-ms) ease, box-shadow var(--hover-ms) ease; }
     }
+    @layer components {
+      .badge { @apply inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-semibold; }
+      .badge::before { content: ""; @apply inline-block h-1.5 w-1.5 rounded-full bg-current; }
+      .badge-red { @apply border-health-red/20 bg-health-redsoft text-health-red; }
+      .badge-amber { @apply border-health-amber/20 bg-health-ambersoft text-health-amber; }
+      .badge-green { @apply border-health-green/20 bg-health-greensoft text-health-green; }
+      .chip { @apply inline-block rounded px-1.5 py-0.5 font-mono text-[10.5px] font-medium uppercase tracking-wider; }
+      .chip-critical { @apply bg-health-redsoft text-health-red; } .chip-high { @apply bg-orange-100 text-orange-800; }
+      .chip-medium { @apply bg-health-ambersoft text-health-amber; } .chip-low { @apply bg-sand text-ink-3; }
+      .card { @apply rounded-lg bg-surface shadow-card; }
+      .th { @apply px-3 py-2 text-center font-mono text-[10.5px] font-medium uppercase tracking-wider text-ink-3 select-none whitespace-nowrap; }
+      .th-l { @apply text-left; }
+      table.sortable th { @apply cursor-pointer hover:text-ink; }
+      table.sortable th[aria-sort]::after { content: " ↑"; @apply text-brand; }
+      table.sortable th[aria-sort="descending"]::after { content: " ↓"; }
+      .tc { @apply text-center; }
+      .td { @apply px-3 py-2 align-top border-t border-line-soft; }
+      .num { @apply text-right font-num tabular-nums; }
+      .btn { @apply inline-flex items-center rounded-md bg-brand px-3 py-1.5 text-sm font-semibold text-white hover:bg-brand-dark focus:outline-none focus:ring-2 focus:ring-brand/40 disabled:opacity-50; }
+      .btn-quiet { @apply inline-flex items-center rounded-md border border-line bg-surface px-3 py-1.5 text-sm font-semibold text-ink hover:bg-sand/70 focus:outline-none focus:ring-2 focus:ring-brand/40; }
+      .btn-sm { @apply whitespace-nowrap px-2 py-1 text-xs; }
+      .input { @apply w-full rounded-md border border-line bg-surface px-2.5 py-1.5 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30; }
+      .link { @apply font-semibold text-ink underline decoration-line decoration-2 underline-offset-2 hover:text-brand hover:decoration-brand; }
+      .navlink { @apply rounded-md px-3 py-1.5 text-sm font-semibold text-ink-2 hover:bg-sand hover:text-ink; }
+      .navlink-active { @apply bg-brand-soft text-brand; }
+      .kicker { @apply font-mono text-[10.5px] font-medium uppercase tracking-wider text-ink-3; }
+      .stat { @apply font-num text-4xl font-semibold tabular-nums leading-none tracking-tight; }
+    }
+    td.num, .font-num { font-feature-settings: "tnum" 1, "lnum" 1; }
     .htmx-request .htmx-indicator { opacity: 1; }
     .htmx-indicator { opacity: 0; transition: opacity .2s; }
   </style>
   <script src="https://unpkg.com/htmx.org@2.0.4" crossorigin="anonymous"></script>
   {% block head %}{% endblock %}
 </head>
-<body class="min-h-full bg-slate-50 font-sans text-ink antialiased">
-  <header class="border-b border-slate-200 bg-white">
+<body class="min-h-full bg-paper font-sans text-ink antialiased">
+  <header class="border-b border-line bg-surface/80 backdrop-blur">
     <div class="mx-auto flex max-w-7xl items-center gap-2 px-4 py-2.5 sm:px-6">
-      <a href="/" class="mr-4 flex items-center gap-2 font-bold text-ink">
-        <span class="inline-block h-5 w-5 rounded bg-brand"></span> Onboarding Tracker
+      <a href="/" class="mr-4 flex items-center gap-2 font-display text-lg font-semibold text-ink">
+        <span class="inline-block h-2.5 w-2.5 rounded-full bg-brand"></span> Onboarding Tracker
       </a>
       {% set path = request.url.path %}
       <nav class="flex flex-wrap gap-1">
@@ -54,11 +89,52 @@
         <a href="/blockers" class="navlink {{ 'navlink-active' if path.startswith('/blockers') }}">Blockers</a>
         <a href="/team" class="navlink {{ 'navlink-active' if path.startswith('/team') }}">Team</a>
       </nav>
-      <div class="ml-auto hidden text-xs text-ink-3 sm:block">Demo data · {{ now|date if now else '' }}</div>
+      <div class="ml-auto hidden kicker sm:block">Demo data · {{ now|date if now else '' }}</div>
     </div>
   </header>
   <main class="mx-auto max-w-7xl px-4 py-6 sm:px-6">
     {% block content %}{% endblock %}
   </main>
+  <script>
+    // Click-to-sort for any <table class="sortable">. Sort key per cell: data-value if
+    // present, else health/severity rank, else number, else date, else text.
+    (function () {
+      const rank = { 'badge-red': 0, 'badge-amber': 1, 'badge-green': 2,
+                     'chip-critical': 0, 'chip-high': 1, 'chip-medium': 2, 'chip-low': 3 };
+      function key(td) {
+        if (td.dataset.value !== undefined) return isNaN(td.dataset.value) ? td.dataset.value : Number(td.dataset.value);
+        const b = td.querySelector('.badge, .chip');
+        if (b) for (const c of b.classList) if (c in rank) return rank[c];
+        const t = td.textContent.trim();
+        const n = t.replace(/[$,]/g, '').match(/^-?\d+(\.\d+)?/);
+        if (n && /^[-$\d]/.test(t)) return Number(n[0]);
+        const d = Date.parse(t);
+        if (!isNaN(d) && /\d{4}/.test(t)) return d;
+        return t.toLowerCase();
+      }
+      function bind(root) { root.querySelectorAll('table.sortable:not([data-bound])').forEach(table => {
+        table.dataset.bound = '1';
+        const ths = table.querySelectorAll('thead th');
+        ths.forEach((th, i) => {
+          if (!th.textContent.trim()) return;
+          th.addEventListener('click', () => {
+            const dir = th.getAttribute('aria-sort') === 'ascending' ? 'descending' : 'ascending';
+            ths.forEach(o => o.removeAttribute('aria-sort'));
+            th.setAttribute('aria-sort', dir);
+            const tbody = table.tBodies[0];
+            const rows = Array.from(tbody.rows).filter(r => r.cells.length > 1);
+            rows.sort((a, b) => {
+              const ka = key(a.cells[i]), kb = key(b.cells[i]);
+              const c = typeof ka === 'number' && typeof kb === 'number' ? ka - kb : String(ka).localeCompare(String(kb));
+              return dir === 'ascending' ? c : -c;
+            });
+            rows.forEach(r => tbody.appendChild(r));
+          });
+        });
+      }); }
+      bind(document);
+      document.body.addEventListener('htmx:afterSwap', e => bind(e.target));
+    })();
+  </script>
 </body>
 </html>

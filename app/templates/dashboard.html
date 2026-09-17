@@ -6,7 +6,7 @@
 {% endblock %}
 {% block content %}
 <div class="flex flex-wrap items-end justify-between gap-3">
-  <h1 class="text-2xl font-bold">Dashboard</h1>
+  <div><div class="kicker">Implementation pipeline</div><h1 class="font-display text-3xl font-semibold">Dashboard</h1></div>
   <div class="text-sm text-ink-3">
     Export <a class="link" href="/export/pipeline.csv">pipeline.csv</a> · <a class="link" href="/export/blockers.csv">blockers.csv</a>
   </div>
@@ -14,24 +14,24 @@
 
 {# ---- KPI tiles ---- #}
 <div class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-  <div class="card p-4"><div class="text-3xl font-semibold tabular-nums">{{ total_clients }}</div><div class="text-xs font-medium uppercase tracking-wide text-ink-3">Accounts onboarding</div></div>
-  <div class="card p-4"><div class="text-3xl font-semibold tabular-nums text-red-600">{{ health_counts.red }}</div><div class="text-xs font-medium uppercase tracking-wide text-ink-3">Red</div></div>
-  <div class="card p-4"><div class="text-3xl font-semibold tabular-nums text-amber-600">{{ health_counts.amber }}</div><div class="text-xs font-medium uppercase tracking-wide text-ink-3">Amber</div></div>
-  <div class="card p-4"><div class="text-3xl font-semibold tabular-nums text-emerald-600">{{ health_counts.green }}</div><div class="text-xs font-medium uppercase tracking-wide text-ink-3">Green</div></div>
+  <div class="card border-l-4 border-l-brand p-4"><div class="stat">{{ total_clients }}</div><div class="kicker mt-1">Accounts onboarding</div></div>
+  <div class="card border-l-4 border-l-health-red p-4"><div class="stat text-health-red">{{ health_counts.red }}</div><div class="kicker mt-1">Red · needs action</div></div>
+  <div class="card border-l-4 border-l-health-amber p-4"><div class="stat text-health-amber">{{ health_counts.amber }}</div><div class="kicker mt-1">Amber · watch</div></div>
+  <div class="card border-l-4 border-l-health-green p-4"><div class="stat text-health-green">{{ health_counts.green }}</div><div class="kicker mt-1">Green · on track</div></div>
 </div>
 
 {# ---- charts ---- #}
 <div class="mt-4 grid gap-3 lg:grid-cols-3">
   <div class="card p-4">
-    <div class="mb-2 text-sm font-semibold">Accounts by stage</div>
+    <div class="mb-2 font-display text-base font-semibold">Accounts by stage</div>
     <div class="relative h-44"><canvas id="chart-stages" role="img" aria-label="Bar chart of accounts per pipeline stage"></canvas></div>
   </div>
   <div class="card p-4">
-    <div class="mb-2 text-sm font-semibold">Health mix</div>
+    <div class="mb-2 font-display text-base font-semibold">Health mix</div>
     <div class="relative h-44"><canvas id="chart-health" role="img" aria-label="Bar chart of accounts by health colour"></canvas></div>
   </div>
   <div class="card p-4">
-    <div class="mb-2 text-sm font-semibold">Average days in stage <span class="font-normal text-ink-3">vs. amber threshold</span></div>
+    <div class="mb-2 font-display text-base font-semibold">Average days in stage <span class="font-normal text-ink-3">vs. amber threshold</span></div>
     <div class="relative h-44"><canvas id="chart-duration" role="img" aria-label="Bar chart of average days spent in each stage against its threshold"></canvas></div>
   </div>
 </div>
@@ -39,16 +39,16 @@
 {# ---- at-risk list ---- #}
 {{ section_title("At-risk accounts", at_risk|length) }}
 <div class="card overflow-x-auto">
-<table class="w-full text-sm">
-  <thead><tr><th class="th">Client</th><th class="th">Health</th><th class="th">Stage</th><th class="th num">Days in stage</th><th class="th num">Go-live in</th><th class="th">Owner</th><th class="th">Why</th></tr></thead>
+<table class="sortable w-full text-sm">
+  <thead><tr><th class="th th-l">Client</th><th class="th">Health</th><th class="th">Stage</th><th class="th num">Days in stage</th><th class="th num">Go-live in</th><th class="th th-l">Owner</th><th class="th th-l">Why</th></tr></thead>
   <tbody>
   {% for h in at_risk %}
-  <tr class="hover:bg-slate-50">
+  <tr class="hover:bg-sand/40">
     <td class="td"><a class="link" href="/clients/{{ h.client.id }}">{{ h.client.name }}</a><div class="text-xs text-ink-3">{{ h.client.segment|humanize }}</div></td>
-    <td class="td">{{ health_badge(h.health.colour) }}</td>
-    <td class="td">{{ stage_pill(h.client.current_stage.name) }}</td>
+    <td class="td tc">{{ health_badge(h.health.colour) }}</td>
+    <td class="td tc">{{ stage_pill(h.client.current_stage.name) }}</td>
     <td class="td num">{{ h.days_in_stage }}</td>
-    <td class="td num {{ 'text-red-600 font-semibold' if h.days_to_go_live < 0 }}">{{ h.days_to_go_live }}d</td>
+    <td class="td num {{ 'text-health-red font-semibold' if h.days_to_go_live < 0 }}">{{ h.days_to_go_live }}d</td>
     <td class="td whitespace-nowrap">{{ h.client.owner.name }}</td>
     <td class="td">{{ reasons(h.health.reasons) }}</td>
   </tr>
@@ -60,32 +60,32 @@
 <div class="grid gap-6 lg:grid-cols-2">
   <div>
     {{ section_title("Go-lives in the next 30 days", upcoming|length) }}
-    <div class="card overflow-x-auto"><table class="w-full text-sm">
-      <thead><tr><th class="th">Client</th><th class="th">Target</th><th class="th">Stage</th><th class="th">Health</th></tr></thead>
+    <div class="card overflow-x-auto"><table class="sortable w-full text-sm">
+      <thead><tr><th class="th th-l">Client</th><th class="th">Target</th><th class="th">Stage</th><th class="th">Health</th></tr></thead>
       <tbody>{% for h in upcoming %}
-      <tr><td class="td"><a class="link" href="/clients/{{ h.client.id }}">{{ h.client.name }}</a></td><td class="td whitespace-nowrap">{{ h.client.target_go_live_date|date }}</td><td class="td">{{ stage_pill(h.client.current_stage.name) }}</td><td class="td">{{ health_badge(h.health.colour) }}</td></tr>
+      <tr><td class="td"><a class="link" href="/clients/{{ h.client.id }}">{{ h.client.name }}</a></td><td class="td tc whitespace-nowrap">{{ h.client.target_go_live_date|date }}</td><td class="td tc">{{ stage_pill(h.client.current_stage.name) }}</td><td class="td tc">{{ health_badge(h.health.colour) }}</td></tr>
       {% else %}<tr><td colspan="4" class="td text-ink-3">None scheduled.</td></tr>{% endfor %}</tbody>
     </table></div>
 
     {{ section_title("Oldest open blockers") }}
-    <div class="card overflow-x-auto"><table class="w-full text-sm">
-      <thead><tr><th class="th">Client</th><th class="th">Blocker</th><th class="th">Sev</th><th class="th num">Age</th><th class="th">Ref</th></tr></thead>
+    <div class="card overflow-x-auto"><table class="sortable w-full text-sm">
+      <thead><tr><th class="th th-l">Client</th><th class="th th-l">Blocker</th><th class="th">Sev</th><th class="th num">Age</th><th class="th">Ref</th></tr></thead>
       <tbody>{% for b in oldest_blockers %}
-      <tr><td class="td"><a class="link" href="/clients/{{ b.client.id }}">{{ b.client.name }}</a></td><td class="td">{{ b.title }}</td><td class="td">{{ severity(b.severity) }}</td><td class="td num">{{ b.age_days(now) }}d</td><td class="td font-mono text-xs text-ink-3">{{ b.external_ref or '' }}</td></tr>
+      <tr><td class="td"><a class="link" href="/clients/{{ b.client.id }}">{{ b.client.name }}</a></td><td class="td">{{ b.title }}</td><td class="td tc">{{ severity(b.severity) }}</td><td class="td num">{{ b.age_days(now) }}d</td><td class="td tc font-mono text-xs text-ink-3">{{ b.external_ref or '' }}</td></tr>
       {% else %}<tr><td colspan="5" class="td text-ink-3">No open blockers.</td></tr>{% endfor %}</tbody>
     </table></div>
   </div>
   <div>
     {{ section_title("Overdue milestones", overdue|length) }}
-    <div class="card overflow-x-auto"><table class="w-full text-sm">
-      <thead><tr><th class="th">Client</th><th class="th">Milestone</th><th class="th">Due</th><th class="th">Owner</th></tr></thead>
+    <div class="card overflow-x-auto"><table class="sortable w-full text-sm">
+      <thead><tr><th class="th th-l">Client</th><th class="th th-l">Milestone</th><th class="th">Due</th><th class="th th-l">Owner</th></tr></thead>
       <tbody>{% for m in overdue %}
-      <tr><td class="td"><a class="link" href="/clients/{{ m.client.id }}">{{ m.client.name }}</a></td><td class="td">{{ m.title }}</td><td class="td whitespace-nowrap text-red-600">{{ m.due_date|date }}</td><td class="td whitespace-nowrap">{{ m.owner.name if m.owner else '—' }}</td></tr>
+      <tr><td class="td"><a class="link" href="/clients/{{ m.client.id }}">{{ m.client.name }}</a></td><td class="td">{{ m.title }}</td><td class="td tc whitespace-nowrap text-health-red">{{ m.due_date|date }}</td><td class="td whitespace-nowrap">{{ m.owner.name if m.owner else '—' }}</td></tr>
       {% else %}<tr><td colspan="4" class="td text-ink-3">None overdue.</td></tr>{% endfor %}</tbody>
     </table></div>
 
     {{ section_title("Time in stage (completed visits)") }}
-    <div class="card overflow-x-auto"><table class="w-full text-sm">
+    <div class="card overflow-x-auto"><table class="sortable w-full text-sm">
       <thead><tr><th class="th">Stage</th><th class="th num">Visits</th><th class="th num">Avg days</th><th class="th num">Max days</th></tr></thead>
       <tbody>{% for s in stage_averages %}
       <tr><td class="td">{{ s.stage }}</td><td class="td num">{{ s.completed_visits }}</td><td class="td num">{{ s.avg_days }}</td><td class="td num">{{ s.max_days }}</td></tr>
@@ -96,8 +96,8 @@
 
 <script>
   const data = {{ chart_data|tojson }};
-  const ink = '#4a5768', grid = '#e8ecef', brand = '#0e7c7b';
-  const status = { red: '#dc2626', amber: '#d97706', green: '#059669' };
+  const ink = '#5a5148', grid = '#ede5d7', brand = '#2b4a6f';
+  const status = { red: '#a3271c', amber: '#a15b08', green: '#1f6b47' };
   Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
   Chart.defaults.color = ink;
   const base = (extra) => ({
@@ -122,7 +122,7 @@
     type: 'bar',
     data: { labels: data.duration.labels, datasets: [
       { label: 'Average days', data: data.duration.avg, backgroundColor: brand, borderRadius: 4, maxBarThickness: 36, order: 2 },
-      { label: 'Amber threshold', data: data.duration.threshold, type: 'line', borderColor: '#d97706', borderDash: [4, 3], borderWidth: 2, pointRadius: 3, pointBackgroundColor: '#d97706', fill: false, order: 1 },
+      { label: 'Amber threshold', data: data.duration.threshold, type: 'line', borderColor: '#a15b08', borderDash: [4, 3], borderWidth: 2, pointRadius: 3, pointBackgroundColor: '#a15b08', fill: false, order: 1 },
     ] },
     options: base({ plugins: { legend: { display: true, position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } }, tooltip: { displayColors: false } } }),
   });

@@ -11,9 +11,9 @@
 {%- endmacro %}
 
 {% macro stage_pill(name) -%}
-<span class="inline-block rounded bg-slate-100 px-2 py-0.5 text-xs font-medium text-ink-2">{{ name }}</span>
+<span class="inline-block rounded bg-sand px-2 py-0.5 text-xs font-medium text-ink-2">{{ name }}</span>
 {%- endmacro %}
 
 {% macro section_title(text, count=None) -%}
-<h2 class="mb-2 mt-6 flex items-baseline gap-2 text-base font-semibold">{{ text }}{% if count is not none %}<span class="text-sm font-normal text-ink-3">({{ count }})</span>{% endif %}</h2>
+<h2 class="mb-2 mt-6 flex items-baseline gap-2 font-display text-lg font-semibold">{{ text }}{% if count is not none %}<span class="text-sm font-normal text-ink-3">({{ count }})</span>{% endif %}</h2>
 {%- endmacro %}
