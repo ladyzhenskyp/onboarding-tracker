@@ -53,8 +53,11 @@
       .th { @apply px-3 py-2 text-center font-mono text-[10.5px] font-medium uppercase tracking-wider text-ink-3 select-none whitespace-nowrap; }
       .th-l { @apply text-left; }
       table.sortable th { @apply cursor-pointer hover:text-ink; }
-      table.sortable th:not([aria-sort]):hover::after { content: " ⇅"; @apply text-ink-3; }
-      table.sortable th[aria-sort]::after { content: " ↑"; @apply text-brand; }
+      /* The sort glyph always occupies its space (opacity 0 when idle) so hovering
+         never changes the header width and re-flows the column. */
+      table.sortable th::after { content: " ⇅"; @apply inline-block w-3 text-ink-3 opacity-0; }
+      table.sortable th:hover::after { @apply opacity-100; }
+      table.sortable th[aria-sort]::after { content: " ↑"; @apply text-brand opacity-100; }
       table.sortable th[aria-sort="descending"]::after { content: " ↓"; }
       .tc { @apply text-center; }
       .td { @apply px-3 py-2 align-top border-t border-line-soft; }
