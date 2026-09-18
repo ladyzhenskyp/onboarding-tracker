@@ -1,12 +1,16 @@
 # Client Onboarding & Implementation Tracker
 
+[![CI](https://github.com/ladyzhenskyp/onboarding-tracker/actions/workflows/ci.yml/badge.svg)](https://github.com/ladyzhenskyp/onboarding-tracker/actions/workflows/ci.yml)
+
 A lightweight web app for customer-success / implementation teams. Each client
 account moves through a fixed onboarding pipeline
 (**Kickoff → Discovery/Config → UAT → Prod → Live**) and the team can see at a
 glance which accounts are at risk — and *why*.
 
-> Status: Phase 3 complete — styled with Tailwind, HTMX inline updates on the
-> client page, Chart.js dashboard charts. Deployment and CI are next.
+> **Live demo:** _URL coming once the Railway deploy is up_ · sign in with the
+> pre-filled demo account. Data is fictional and reseeds on deploy.
+>
+> Status: Phase 4 — Dockerised, deployed on Railway with Postgres, CI on every push.
 
 ## Stack
 
@@ -18,7 +22,36 @@ glance which accounts are at risk — and *why*.
 | Frontend   | Jinja2 templates + HTMX + Tailwind CSS   | No separate JS build; inline updates without React       |
 | Charts     | Chart.js                                 | Small, no build step                                     |
 | Tests / CI | pytest, ruff, GitHub Actions             |                                                          |
-| Deploy     | Docker → Render (free tier) + Postgres   |                                                          |
+| Deploy     | Docker → Railway (Hobby) + Postgres      | Always-on, no cold starts; deploys on push               |
+
+## Deployment
+
+The app ships as a Docker image (`Dockerfile`). On start, `scripts/start.sh`
+runs `alembic upgrade head`, seeds demo data if the database is empty, then
+serves with uvicorn on `$PORT`.
+
+Railway (used for the live demo): create a project from this repo, add a
+**PostgreSQL** service, and set these variables on the web service:
+
+| Variable | Value |
+|---|---|
+| `DATABASE_URL` | `${{ Postgres.DATABASE_URL }}` (reference the Postgres service) |
+| `SECRET_KEY` | any long random string (`python -c "import secrets; print(secrets.token_hex(32))"`) |
+| `DEMO_USERNAME` / `DEMO_PASSWORD` | the shared demo login |
+| `SEED_ON_DEPLOY` | `true` (default) — seeds only when there are no clients |
+
+`railway.json` points the health check at `/healthz`. Any Docker host works the
+same way; only the `DATABASE_URL` differs.
+
+To reset the demo data on a running deployment, run `python scripts/seed.py`
+in the service's shell (it wipes client data and reseeds; stages are kept).
+
+## Authentication
+
+A single demo account guards every page so the public demo can't be edited
+anonymously. It is intentionally minimal — a signed session cookie checked by
+a middleware (`app/auth.py`). A real deployment would use per-user accounts and
+SSO; see `docs/architecture.md`.
 
 ## Documentation
 
@@ -29,7 +62,7 @@ glance which accounts are at risk — and *why*.
 | [`docs/schema-design.md`](docs/schema-design.md) | Normalisation, lookup tables vs enums, stage history, indexes |
 | [`docs/erd.md`](docs/erd.md) | Entity-relationship diagram |
 | [`docs/risk-rules.md`](docs/risk-rules.md) | The at-risk rules spec and test cases |
-| [`docs/development.md`](docs/development.md) | Setup, commands, conventions, how to add rules/columns/pages |
+| [`docs/development.md`](docs/development.md) | Setup, commands, conventions, how to add rules/columns/pages, deploying |
 | [`docs/glossary.md`](docs/glossary.md) | Plain-language definitions of every term above |
 | [`queries/README.md`](queries/README.md) | The hand-written analytical SQL |
 

@@ -12,6 +12,9 @@ import pytest
 
 _TMP = Path(tempfile.mkdtemp(prefix="tracker-test-"))
 os.environ["DATABASE_URL"] = f"sqlite:///{_TMP / 'test.db'}"
+os.environ.setdefault("DEMO_USERNAME", "demo")
+os.environ.setdefault("DEMO_PASSWORD", "demo1234")
+os.environ.setdefault("SECRET_KEY", "test-secret")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
@@ -37,4 +40,13 @@ def seeded_database():
 
 @pytest.fixture()
 def client():
+    """A signed-in test client (the demo login guards every page)."""
+    c = TestClient(app)
+    c.post("/login", data={"username": "demo", "password": "demo1234"})
+    return c
+
+
+@pytest.fixture()
+def anon():
+    """A test client with no session cookie."""
     return TestClient(app)

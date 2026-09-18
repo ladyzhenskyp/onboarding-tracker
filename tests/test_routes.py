@@ -153,3 +153,32 @@ def test_dashboard_embeds_chart_data(client):
     r = client.get("/")
     assert '"stages"' in r.text and '"threshold"' in r.text
     assert "chart-duration" in r.text
+
+
+# ---- auth --------------------------------------------------------------------
+def test_anonymous_is_redirected_to_login(anon):
+    r = anon.get("/", follow_redirects=False)
+    assert r.status_code == 303 and r.headers["location"].startswith("/login")
+    assert anon.get("/healthz").status_code == 200  # health check stays public
+
+
+def test_anonymous_htmx_gets_hx_redirect(anon):
+    r = anon.post("/clients/1/notes", data={"body": "x"}, headers=HX)
+    assert r.status_code == 401 and r.headers["HX-Redirect"] == "/login"
+
+
+def test_login_wrong_password_shows_error(anon):
+    r = anon.post("/login", data={"username": "demo", "password": "nope"})
+    assert r.status_code == 401 and "t match." in r.text
+
+
+def test_login_then_logout(anon):
+    r = anon.post(
+        "/login",
+        data={"username": "demo", "password": "demo1234", "next": "/team"},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303 and r.headers["location"] == "/team"
+    assert anon.get("/team").status_code == 200
+    anon.post("/logout")
+    assert anon.get("/team", follow_redirects=False).status_code == 303

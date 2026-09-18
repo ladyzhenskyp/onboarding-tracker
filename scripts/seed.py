@@ -1,6 +1,7 @@
 """Populate the database with a realistic, fictional demo dataset.
 
     python scripts/seed.py            # wipes client data and re-seeds (stages are kept)
+    python scripts/seed.py --if-empty # only seeds when there are no clients yet (used on deploy)
 
 Deterministic (fixed Faker seed) so the demo looks the same on every deploy,
 but all dates are relative to *today* so the dashboard always looks alive.
@@ -359,12 +360,15 @@ def seed_notes_and_meetings(client: Client, now: datetime, team: list[User]) -> 
         client.meetings.append(meeting)
 
 
-def run() -> None:
+def run(if_empty: bool = False) -> None:
     now = utcnow()
     with SessionLocal() as db:
         stages = {s.key: s for s in db.scalars(select(Stage)).all()}
         if set(stages) != set(STAGE_ORDER):
             raise SystemExit("Stages table is empty or wrong — run `alembic upgrade head` first.")
+        if if_empty and db.query(Client).count() > 0:
+            print("Database already has clients; skipping seed.")
+            return
 
         wipe(db)
         team = seed_users(db)
@@ -398,4 +402,4 @@ def run() -> None:
 
 
 if __name__ == "__main__":
-    run()
+    run(if_empty="--if-empty" in sys.argv[1:])

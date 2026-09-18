@@ -106,6 +106,20 @@ matters.
 3. Add the form in `clients/_body.html` with both `hx-post`/`hx-target`/`hx-swap`
    **and** `method`/`action`, so it works without JavaScript too.
 
+## Deploying
+
+`Dockerfile` + `scripts/start.sh` are the whole deployment story; `railway.json`
+adds a health check. Push to `main` and Railway rebuilds. To try the container
+locally:
+
+```bash
+docker build -t onboarding-tracker .
+docker run --rm -p 8000:8000 -e SECRET_KEY=dev -e DATABASE_URL=sqlite:////tmp/tracker.db onboarding-tracker
+```
+
+CI (`.github/workflows/ci.yml`) runs ruff, pytest and a migration + seed smoke
+test on every push and pull request.
+
 ## Verifying the SQL against PostgreSQL
 
 The `.sql` files and the migration are written for PostgreSQL. To check them

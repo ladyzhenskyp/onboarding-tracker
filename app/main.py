@@ -10,12 +10,17 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
+from app.auth import AuthMiddleware
+from app.auth import router as auth_router
 from app.routers import blockers, clients, dashboard, exports, pipeline, team
 
 app = FastAPI(title="Client Onboarding Tracker", version="0.2.0")
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+app.add_middleware(AuthMiddleware)
+
+app.include_router(auth_router)
 
 app.include_router(dashboard.router)
 app.include_router(pipeline.router)
