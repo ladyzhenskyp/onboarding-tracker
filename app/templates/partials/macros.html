@@ -11,7 +11,7 @@
 {%- endmacro %}
 
 {% macro stage_pill(name) -%}
-<span class="inline-block rounded bg-sand px-2 py-0.5 text-xs font-medium text-ink-2">{{ name }}</span>
+<span class="inline-block whitespace-nowrap rounded bg-sand px-2 py-0.5 text-xs font-medium text-ink-2" title="{{ name }}">{{ name.split(' / ')[0] }}</span>
 {%- endmacro %}
 
 {% macro section_title(text, count=None) -%}

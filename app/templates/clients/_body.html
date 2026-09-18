@@ -37,7 +37,7 @@
       </form>
       {% endif %}
       <form hx-post="/clients/{{ client.id }}/stage" {{ hx|safe }} method="post" action="/clients/{{ client.id }}/stage" class="flex items-center gap-2">
-        <select name="stage_key" class="input w-auto py-1">{% for s in stages %}<option value="{{ s.key }}" {% if s.id == client.current_stage_id %}disabled{% endif %}>{{ s.name }}</option>{% endfor %}</select>
+        <select name="stage_key" class="input w-auto py-1" required><option value="" disabled selected>Move to…</option>{% for s in stages %}<option value="{{ s.key }}" {% if s.id == client.current_stage_id %}disabled{% endif %}>{{ s.name }}</option>{% endfor %}</select>
         <input name="reason" class="input w-48 py-1" placeholder="Reason (optional)">
         <button class="btn-quiet">Move</button>
       </form>
@@ -47,7 +47,7 @@
     {% for t in timeline %}
     <li class="rounded-md border-t-4 bg-sand/50 px-2.5 py-2 text-xs
         {{ 'border-t-health-green' if t.state == 'done' else ('border-t-brand bg-brand-soft' if t.state == 'current' else 'border-t-line') }}">
-      <div class="font-semibold {{ 'text-brand' if t.state == 'current' else ('text-ink' if t.state == 'done' else 'text-ink-3') }}">{{ t.stage.name }}</div>
+      <div class="font-semibold {{ 'text-brand' if t.state == 'current' else ('text-ink' if t.state == 'done' else 'text-ink-3') }}" title="{{ t.stage.name }}">{{ t.stage.name.split(' / ')[0] }}</div>
       <div class="mt-0.5 text-ink-3">
         {% if t.state == 'current' %}{{ t.days }}d so far{% elif t.state == 'done' %}{{ t.days }}d{% else %}&nbsp;{% endif %}
       </div>
@@ -65,7 +65,7 @@
       <tbody>
       {% for m in client.milestones %}
       <tr class="{{ 'text-ink-3' if m.status == 'done' }}">
-        <td class="td">{{ m.title }}</td>
+        <td class="td min-w-[12rem]">{{ m.title }}</td>
         <td class="td tc whitespace-nowrap">{{ m.due_date|date }}</td>
         <td class="td tc whitespace-nowrap">{% if m.is_overdue(today) %}<span class="chip chip-critical">Overdue</span>{% elif m.status == 'done' %}<span class="text-health-green">✓ Done</span>{% else %}{{ m.status|humanize }}{% endif %}</td>
         <td class="td whitespace-nowrap">{{ m.owner.name if m.owner else '—' }}</td>
@@ -92,7 +92,7 @@
       <tbody>
       {% for b in open_blockers %}
       <tr>
-        <td class="td">{{ b.title }}{% if b.description %}<div class="text-xs text-ink-3">{{ b.description }}</div>{% endif %}</td>
+        <td class="td min-w-[14rem]">{{ b.title }}{% if b.description %}<div class="text-xs text-ink-3">{{ b.description }}</div>{% endif %}</td>
         <td class="td tc">{{ severity(b.severity) }}</td>
         <td class="td num">{{ b.age_days(now) }}d</td>
         <td class="td whitespace-nowrap">{{ b.owner.name if b.owner else '—' }}</td>

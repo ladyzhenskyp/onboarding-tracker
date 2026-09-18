@@ -53,6 +53,7 @@
       .th { @apply px-3 py-2 text-center font-mono text-[10.5px] font-medium uppercase tracking-wider text-ink-3 select-none whitespace-nowrap; }
       .th-l { @apply text-left; }
       table.sortable th { @apply cursor-pointer hover:text-ink; }
+      table.sortable th:not([aria-sort]):hover::after { content: " ⇅"; @apply text-ink-3; }
       table.sortable th[aria-sort]::after { content: " ↑"; @apply text-brand; }
       table.sortable th[aria-sort="descending"]::after { content: " ↓"; }
       .tc { @apply text-center; }
@@ -66,6 +67,7 @@
       .navlink { @apply rounded-md px-3 py-1.5 text-sm font-semibold text-ink-2 hover:bg-sand hover:text-ink; }
       .navlink-active { @apply bg-brand-soft text-brand; }
       .kicker { @apply font-mono text-[10.5px] font-medium uppercase tracking-wider text-ink-3; }
+      .caption { @apply text-sm text-ink-2; }
       .stat { @apply font-num text-4xl font-semibold tabular-nums leading-none tracking-tight; }
     }
     td.num, .font-num { font-feature-settings: "tnum" 1, "lnum" 1; }
@@ -76,7 +78,7 @@
   {% block head %}{% endblock %}
 </head>
 <body class="min-h-full bg-paper font-sans text-ink antialiased">
-  <header class="border-b border-line bg-surface/80 backdrop-blur">
+  <header class="sticky top-0 z-40 border-b border-line bg-surface/85 backdrop-blur">
     <div class="mx-auto flex max-w-7xl items-center gap-2 px-4 py-2.5 sm:px-6">
       <a href="/" class="mr-4 flex items-center gap-2 font-display text-lg font-semibold text-ink">
         <span class="inline-block h-2.5 w-2.5 rounded-full bg-brand"></span> Onboarding Tracker

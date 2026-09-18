@@ -2,7 +2,7 @@
 {% from "partials/macros.html" import health_badge, severity, reasons, stage_pill, section_title %}
 {% block title %}Dashboard · Onboarding Tracker{% endblock %}
 {% block head %}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.7/chart.umd.min.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.7/chart.umd.js" crossorigin="anonymous"></script>
 {% endblock %}
 {% block content %}
 <div class="flex flex-wrap items-end justify-between gap-3">
@@ -14,10 +14,10 @@
 
 {# ---- KPI tiles ---- #}
 <div class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-  <div class="card border-l-4 border-l-brand p-4"><div class="stat">{{ total_clients }}</div><div class="kicker mt-1">Accounts onboarding</div></div>
-  <div class="card border-l-4 border-l-health-red p-4"><div class="stat text-health-red">{{ health_counts.red }}</div><div class="kicker mt-1">Red · needs action</div></div>
-  <div class="card border-l-4 border-l-health-amber p-4"><div class="stat text-health-amber">{{ health_counts.amber }}</div><div class="kicker mt-1">Amber · watch</div></div>
-  <div class="card border-l-4 border-l-health-green p-4"><div class="stat text-health-green">{{ health_counts.green }}</div><div class="kicker mt-1">Green · on track</div></div>
+  <div class="card border-l-4 border-l-brand p-4"><div class="stat">{{ total_clients }}</div><div class="caption mt-1">Accounts onboarding</div></div>
+  <div class="card border-l-4 border-l-health-red p-4"><div class="stat text-health-red">{{ health_counts.red }}</div><div class="caption mt-1"><b class="text-health-red">Red</b> · needs action now</div></div>
+  <div class="card border-l-4 border-l-health-amber p-4"><div class="stat text-health-amber">{{ health_counts.amber }}</div><div class="caption mt-1"><b class="text-health-amber">Amber</b> · watch closely</div></div>
+  <div class="card border-l-4 border-l-health-green p-4"><div class="stat text-health-green">{{ health_counts.green }}</div><div class="caption mt-1"><b class="text-health-green">Green</b> · on track</div></div>
 </div>
 
 {# ---- charts ---- #}
@@ -48,7 +48,7 @@
     <td class="td tc">{{ health_badge(h.health.colour) }}</td>
     <td class="td tc">{{ stage_pill(h.client.current_stage.name) }}</td>
     <td class="td num">{{ h.days_in_stage }}</td>
-    <td class="td num {{ 'text-health-red font-semibold' if h.days_to_go_live < 0 }}">{{ h.days_to_go_live }}d</td>
+    <td class="td num whitespace-nowrap {{ 'text-health-red font-semibold' if h.days_to_go_live < 0 }}" data-value="{{ h.days_to_go_live }}">{% if h.days_to_go_live < 0 %}{{ -h.days_to_go_live }}d ago{% else %}{{ h.days_to_go_live }}d{% endif %}</td>
     <td class="td whitespace-nowrap">{{ h.client.owner.name }}</td>
     <td class="td">{{ reasons(h.health.reasons) }}</td>
   </tr>

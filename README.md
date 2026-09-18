@@ -7,10 +7,10 @@ account moves through a fixed onboarding pipeline
 (**Kickoff → Discovery/Config → UAT → Prod → Live**) and the team can see at a
 glance which accounts are at risk — and *why*.
 
-> **Live demo:** _URL coming once the Railway deploy is up_ · sign in with the
-> pre-filled demo account. Data is fictional and reseeds on deploy.
+> **Live demo:** https://onboarding-tracker-production-0880.up.railway.app — sign in
+> with the pre-filled demo account. Data is fictional and reseeds on deploy.
 >
-> Status: Phase 4 — Dockerised, deployed on Railway with Postgres, CI on every push.
+> Status: deployed on Railway (Docker + Postgres), CI on every push.
 
 ## Stack
 
@@ -36,6 +36,7 @@ Railway (used for the live demo): create a project from this repo, add a
 | Variable | Value |
 |---|---|
 | `DATABASE_URL` | `${{ Postgres.DATABASE_URL }}` (reference the Postgres service) |
+| `PORT` | set by Railway automatically (8080); point the public domain at the same port |
 | `SECRET_KEY` | any long random string (`python -c "import secrets; print(secrets.token_hex(32))"`) |
 | `DEMO_USERNAME` / `DEMO_PASSWORD` | the shared demo login |
 | `SEED_ON_DEPLOY` | `true` (default) — seeds only when there are no clients |
