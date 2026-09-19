@@ -6,6 +6,7 @@
    3. search palette ("/" opens it, arrows + Enter, Esc closes)
    4. client peek panel (rows marked data-peek load /clients/<id>/peek via HTMX)
    5. click-to-sort tables
+   6. dropdowns drawn in the app's own style (the real <select> stays underneath)
 */
 (function () {
   const $ = (s, r) => (r || document).querySelector(s);
@@ -94,6 +95,79 @@
     else if (e.key === 'ArrowUp') { e.preventDefault(); sel = Math.max(sel - 1, 0); paint(); }
     else if (e.key === 'Enter') { const t = list[sel] || list[0]; if (t) { e.preventDefault(); location.href = t.href; } }
   });
+
+  // 6 ---- dropdowns: the browser draws an open <select> in the operating system's
+  // style, which can't be themed. So each <select> keeps working underneath (forms and
+  // HTMX still read its value) while a button + list in the app's own style sits on top.
+  const chevron = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>';
+  let openSel = null;
+  function closeSel() { if (openSel) { openSel.classList.remove('open'); $('.sel-btn', openSel).setAttribute('aria-expanded', 'false'); openSel = null; } }
+  function enhanceSelect(sel) {
+    if (sel.dataset.enhanced || sel.multiple) return;
+    sel.dataset.enhanced = '1';
+    const wrap = document.createElement('div');
+    wrap.className = 'sel' + (sel.classList.contains('w-auto') ? ' sel-auto' : '');
+    sel.parentNode.insertBefore(wrap, sel);
+    const btn = document.createElement('button');
+    btn.type = 'button'; btn.className = 'sel-btn'; btn.setAttribute('aria-haspopup', 'listbox'); btn.setAttribute('aria-expanded', 'false');
+    const menu = document.createElement('ul'); menu.className = 'sel-menu'; menu.setAttribute('role', 'listbox'); menu.tabIndex = -1;
+    wrap.append(btn, menu, sel);
+    sel.classList.add('sel-native'); sel.tabIndex = -1;
+    let act = -1;
+    const opts = () => $$('.sel-opt', menu);
+    function render() {
+      const cur = sel.options[sel.selectedIndex];
+      btn.innerHTML = '<span></span>' + chevron;
+      btn.firstChild.textContent = cur ? cur.textContent : '';
+      btn.classList.toggle('placeholder', !cur || cur.value === '');
+      menu.innerHTML = '';
+      Array.from(sel.options).forEach((o, i) => {
+        if (o.disabled) return;  // e.g. the "Move to…" prompt
+        const li = document.createElement('li');
+        li.className = 'sel-opt'; li.setAttribute('role', 'option'); li.dataset.i = i;
+        li.setAttribute('aria-selected', i === sel.selectedIndex ? 'true' : 'false');
+        li.textContent = o.textContent;
+        menu.appendChild(li);
+      });
+    }
+    function paintAct() { opts().forEach((li, i) => li.classList.toggle('act', i === act)); const a = opts()[act]; if (a) a.scrollIntoView({ block: 'nearest' }); }
+    function open() {
+      closeSel(); render();
+      const r = btn.getBoundingClientRect();
+      wrap.classList.toggle('up', r.bottom + 280 > innerHeight && r.top > 280);
+      wrap.classList.add('open'); btn.setAttribute('aria-expanded', 'true'); openSel = wrap;
+      act = Math.max(opts().findIndex(li => li.getAttribute('aria-selected') === 'true'), 0); paintAct();
+    }
+    function choose(li) {
+      sel.selectedIndex = Number(li.dataset.i);
+      sel.dispatchEvent(new Event('change', { bubbles: true }));
+      render(); closeSel(); btn.focus({ preventScroll: true });
+    }
+    btn.addEventListener('click', () => (wrap.classList.contains('open') ? closeSel() : open()));
+    menu.addEventListener('click', e => { const li = e.target.closest('.sel-opt'); if (li) choose(li); });
+    menu.addEventListener('mousemove', e => { const li = e.target.closest('.sel-opt'); if (li) { act = opts().indexOf(li); paintAct(); } });
+    wrap.addEventListener('keydown', e => {
+      const isOpen = wrap.classList.contains('open');
+      if (!isOpen && ['ArrowDown', 'ArrowUp', 'Enter', ' '].includes(e.key)) { e.preventDefault(); open(); return; }
+      if (!isOpen) return;
+      if (e.key === 'ArrowDown') { e.preventDefault(); act = Math.min(act + 1, opts().length - 1); paintAct(); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); act = Math.max(act - 1, 0); paintAct(); }
+      else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (opts()[act]) choose(opts()[act]); }
+      else if (e.key === 'Escape' || e.key === 'Tab') { e.stopPropagation(); closeSel(); }
+      else if (e.key.length === 1) {  // type a letter to jump
+        e.stopPropagation();
+        const k = e.key.toLowerCase(), i = opts().findIndex(li => li.textContent.trim().toLowerCase().startsWith(k));
+        if (i >= 0) { act = i; paintAct(); }
+      }
+    });
+    sel.addEventListener('change', render);
+    if (sel.form) sel.form.addEventListener('reset', () => setTimeout(render));
+    render();
+  }
+  function enhanceAll(root) { $$('select', root).forEach(enhanceSelect); }
+  enhanceAll(document);
+  document.addEventListener('click', e => { if (openSel && !openSel.contains(e.target)) closeSel(); });
+  document.body.addEventListener('htmx:afterSwap', e => enhanceAll(e.target));
 
   // 5 ---- click-to-sort for <table class="sortable">
   const rank = { 'badge-red': 0, 'badge-amber': 1, 'badge-green': 2, 'chip-critical': 0, 'chip-high': 1, 'chip-medium': 2, 'chip-low': 3 };
