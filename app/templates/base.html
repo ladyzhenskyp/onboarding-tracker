@@ -1,150 +1,107 @@
 <!doctype html>
-<html lang="en" class="h-full">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Onboarding Tracker{% endblock %}</title>
-  {# Tailwind Play CDN: compiles utility classes in the browser. No build step, which is
-     right for a portfolio demo; a production app would precompile with the Tailwind CLI. #}
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@500;600;700&display=swap">
+  {# Switzer is served by Fontshare (Indian Type Foundry). #}
+  <link rel="preconnect" href="https://api.fontshare.com">
+  <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=switzer@400,500,600,700&display=swap">
+  {# The design system (tokens, shell, components, motion) lives in one stylesheet. #}
+  <link rel="stylesheet" href="/static/app.css?v=4">
+  {# Tailwind Play CDN supplies layout utilities (flex, grid, spacing) without a build step,
+     which is right for a portfolio demo; a production app would precompile with the CLI. #}
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
-    // Design tokens. Warm "paper" neutrals, one ink-blue accent, and health colours
-    // kept separate from the accent so red/amber/green always mean status.
+    // Same colours as the CSS variables in app.css, so utilities like `text-ink-2` match.
+    // Corners are square everywhere by design, so every radius except `full` is zero.
     tailwind.config = {
-      theme: { extend: {
-        colors: {
-          paper:   '#f6f1e8',
-          surface: '#fffdf8',
-          sand:    { DEFAULT: '#efe7da', deep: '#e4d9c7' },
-          line:    { DEFAULT: '#e3d9c9', soft: '#ede5d7' },
-          ink:     { DEFAULT: '#2a2420', 2: '#5a5148', 3: '#8b8074' },
-          brand:   { DEFAULT: '#2b4a6f', dark: '#1e3652', soft: '#e3eaf3', tint: '#f0f4f9' },
-          health:  { red: '#a3271c', redsoft: '#f7e1dc', amber: '#a15b08', ambersoft: '#f8e9cf', green: '#1f6b47', greensoft: '#dcefe2' },
+      theme: {
+        borderRadius: { none: '0', sm: '0', DEFAULT: '0', md: '0', lg: '0', xl: '0', '2xl': '0', full: '9999px' },
+        extend: {
+          colors: {
+            page: '#f6f7fb', surface: '#ffffff', mint: '#ecebfb', chip: '#eff0f6',
+            line: { DEFAULT: '#e5e7f0', soft: '#eff0f6', strong: '#cdd0de' },
+            ink: { DEFAULT: '#1c2033', 2: '#5a6078', 3: '#9095ab' },
+            brand: { DEFAULT: '#453fb0', dark: '#3a3499', soft: '#ecebfb' },
+            health: { red: '#b4534b', redsoft: '#fdf1f0', redfill: '#ea9a93', amber: '#96703a', ambersoft: '#fdf6e7', amberfill: '#ecc47e', green: '#3d8263', greensoft: '#edf7f1', greenfill: '#8fd0ae' },
+            sev: { high: '#b0693a', highsoft: '#fdf1e8' },
+          },
+          fontFamily: { sans: ['Switzer', '-apple-system', 'Segoe UI', 'Helvetica', 'Arial', 'sans-serif'] },
         },
-        fontFamily: {
-          display: ['Fraunces', 'Georgia', 'serif'],
-          sans: ['"Source Sans 3"', '-apple-system', 'Segoe UI', 'Helvetica', 'Arial', 'sans-serif'],
-          mono: ['"IBM Plex Mono"', 'Menlo', 'Consolas', 'monospace'],
-          num: ['Inter', '-apple-system', 'Segoe UI', 'Helvetica', 'Arial', 'sans-serif'],
-        },
-        boxShadow: { card: '0 1px 2px rgba(42,36,32,.05), 0 0 0 1px rgba(42,36,32,.04)' },
-      } }
+      },
     }
   </script>
-  <style type="text/tailwindcss">
-    @layer base {
-      :root { --hover-ms: 750ms; }   /* hover fade length — one place to tune */
-      h1, h2, h3 { @apply font-display; font-variation-settings: "opsz" 72; }
-      body { font-size: 15.5px; }
-      a, button, .navlink, .link, .card, tr { transition: color var(--hover-ms) ease, background-color var(--hover-ms) ease, border-color var(--hover-ms) ease, text-decoration-color var(--hover-ms) ease, box-shadow var(--hover-ms) ease; }
-    }
-    @layer components {
-      .badge { @apply inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-semibold; }
-      .badge::before { content: ""; @apply inline-block h-1.5 w-1.5 rounded-full bg-current; }
-      .badge-red { @apply border-health-red/20 bg-health-redsoft text-health-red; }
-      .badge-amber { @apply border-health-amber/20 bg-health-ambersoft text-health-amber; }
-      .badge-green { @apply border-health-green/20 bg-health-greensoft text-health-green; }
-      .chip { @apply inline-block rounded px-1.5 py-0.5 font-mono text-[10.5px] font-medium uppercase tracking-wider; }
-      .chip-critical { @apply bg-health-redsoft text-health-red; } .chip-high { @apply bg-orange-100 text-orange-800; }
-      .chip-medium { @apply bg-health-ambersoft text-health-amber; } .chip-low { @apply bg-sand text-ink-3; }
-      .card { @apply rounded-lg bg-surface shadow-card; }
-      .th { @apply px-3 py-2 text-center font-mono text-[10.5px] font-medium uppercase tracking-wider text-ink-3 select-none whitespace-nowrap; }
-      .th-l { @apply text-left; }
-      table.sortable th { @apply cursor-pointer hover:text-ink; }
-      /* The sort glyph always occupies its space (opacity 0 when idle) so hovering
-         never changes the header width and re-flows the column. */
-      table.sortable th::after { content: " ⇅"; @apply inline-block w-3 text-ink-3 opacity-0; }
-      table.sortable th:hover::after { @apply opacity-100; }
-      table.sortable th[aria-sort]::after { content: " ↑"; @apply text-brand opacity-100; }
-      table.sortable th[aria-sort="descending"]::after { content: " ↓"; }
-      .tc { @apply text-center; }
-      .td { @apply px-3 py-2 align-top border-t border-line-soft; }
-      .num { @apply text-right font-num tabular-nums; }
-      .btn { @apply inline-flex items-center rounded-md bg-brand px-3 py-1.5 text-sm font-semibold text-white hover:bg-brand-dark focus:outline-none focus:ring-2 focus:ring-brand/40 disabled:opacity-50; }
-      .btn-quiet { @apply inline-flex items-center rounded-md border border-line bg-surface px-3 py-1.5 text-sm font-semibold text-ink hover:bg-sand/70 focus:outline-none focus:ring-2 focus:ring-brand/40; }
-      .btn-sm { @apply whitespace-nowrap px-2 py-1 text-xs; }
-      .input { @apply w-full rounded-md border border-line bg-surface px-2.5 py-1.5 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30; }
-      .link { @apply font-semibold text-ink underline decoration-line decoration-2 underline-offset-2 hover:text-brand hover:decoration-brand; }
-      .navlink { @apply rounded-md px-3 py-1.5 text-sm font-semibold text-ink-2 hover:bg-sand hover:text-ink; }
-      .navlink-active { @apply bg-brand-soft text-brand; }
-      .kicker { @apply font-mono text-[10.5px] font-medium uppercase tracking-wider text-ink-3; }
-      .caption { @apply text-sm text-ink-2; }
-      .stat { @apply font-num text-4xl font-semibold tabular-nums leading-none tracking-tight; }
-    }
-    td.num, .font-num { font-feature-settings: "tnum" 1, "lnum" 1; }
-    .htmx-request .htmx-indicator { opacity: 1; }
-    .htmx-indicator { opacity: 0; transition: opacity .2s; }
-  </style>
   <script src="https://unpkg.com/htmx.org@2.0.4" crossorigin="anonymous"></script>
   {% block head %}{% endblock %}
 </head>
-<body class="min-h-full bg-paper font-sans text-ink antialiased">
-  <header class="sticky top-0 z-40 border-b border-line bg-surface/85 backdrop-blur">
-    <div class="mx-auto flex max-w-7xl items-center gap-2 px-4 py-2.5 sm:px-6">
-      <a href="/" class="mr-4 flex items-center gap-2 font-display text-lg font-semibold text-ink">
-        <span class="inline-block h-2.5 w-2.5 rounded-full bg-brand"></span> Onboarding Tracker
-      </a>
-      {% set path = request.url.path %}
-      {% if path != '/login' %}
-      <nav class="flex flex-wrap gap-1">
-        <a href="/" class="navlink {{ 'navlink-active' if path == '/' }}">Dashboard</a>
-        <a href="/pipeline" class="navlink {{ 'navlink-active' if path.startswith('/pipeline') }}">Pipeline</a>
-        <a href="/clients" class="navlink {{ 'navlink-active' if path.startswith('/clients') }}">Clients</a>
-        <a href="/blockers" class="navlink {{ 'navlink-active' if path.startswith('/blockers') }}">Blockers</a>
-        <a href="/team" class="navlink {{ 'navlink-active' if path.startswith('/team') }}">Team</a>
+{% set path = request.url.path %}
+{% set pages = [
+  ('/', 'Dashboard', 'M3 3h7v7H3zM14 3h7v4h-7zM14 11h7v10h-7zM3 14h7v7H3z'),
+  ('/pipeline', 'Pipeline', 'M4 4v16M10 4v10M16 4v13M22 4v7'),
+  ('/clients', 'Clients', 'M16 19v-1a4 4 0 00-4-4H7a4 4 0 00-4 4v1M9.5 10a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM21 19v-1a4 4 0 00-3-3.8M16 3.2a3.5 3.5 0 010 6.6'),
+  ('/blockers', 'Blockers', 'M12 8v5M12 16.5v.5M10.3 3.6L2.5 17a2 2 0 001.7 3h15.6a2 2 0 001.7-3L13.7 3.6a2 2 0 00-3.4 0z'),
+  ('/team', 'Team', 'M12 12a4 4 0 100-8 4 4 0 000 8zM4 21a8 8 0 0116 0'),
+  ('/insights', 'Insights', 'M4 20V10M10 20V4M16 20v-7M22 20H2'),
+] %}
+{% set ns = namespace(active=-1, label='') %}
+{% for href, label, icon in pages %}{% if (href == '/' and path == '/') or (href != '/' and path.startswith(href)) %}{% set ns.active = loop.index0 %}{% set ns.label = label %}{% endif %}{% endfor %}
+<body class="font-sans">
+{% if path == '/login' %}
+  <main class="content">{{ self.content() }}</main>
+{% else %}
+  <div class="shell">
+    <aside class="side">
+      <a href="/" class="brand"><span class="mark"><svg viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3 3 7-7"/></svg></span>Onboarding Tracker</a>
+      <nav class="nav" aria-label="Pages">
+        {# 31px = one 30px row + 1px gap. The highlight slides between pages (view transition). #}
+        {% if ns.active >= 0 %}<span class="nav-ind" style="transform: translateY({{ ns.active * 31 }}px)"></span>{% endif %}
+        {% for href, label, icon in pages %}
+        <a href="{{ href }}" {% if loop.index0 == ns.active %}aria-current="page"{% endif %}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="{{ icon }}"/></svg>{{ label }}</a>
+        {% endfor %}
       </nav>
-      <div class="ml-auto flex items-center gap-3">
-        <span class="hidden kicker sm:block">Demo data · {{ now|date if now else '' }}</span>
-        <form method="post" action="/logout"><button class="navlink" type="submit">Sign out</button></form>
+      <div class="side-foot">
+        <span class="av">D</span>Demo user
+        <form method="post" action="/logout"><button type="submit">Sign out</button></form>
       </div>
-      {% endif %}
+    </aside>
+
+    <div class="main">
+      <header class="topbar">
+        <div class="crumb">Workspace / <b>{{ ns.label or 'Onboarding Tracker' }}</b></div>
+        <button class="search-open" id="search-open" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><span>Search clients or tickets</span><kbd>/</kbd></button>
+        <span class="tb-date">Today · {{ now.strftime('%b %-d') if now else '' }}</span>
+        <details class="relative hidden sm:block">
+          <summary class="btn-ghost">Export ▾</summary>
+          <div class="menu"><a href="/export/pipeline.csv">Pipeline (CSV)</a><a href="/export/blockers.csv">Blockers (CSV)</a></div>
+        </details>
+      </header>
+      <nav class="mobile-nav" aria-label="Pages">
+        {% for href, label, icon in pages %}<a href="{{ href }}" {% if loop.index0 == ns.active %}aria-current="page"{% endif %}>{{ label }}</a>{% endfor %}
+      </nav>
+      <main class="content">
+        {% block content %}{% endblock %}
+      </main>
     </div>
-  </header>
-  <main class="mx-auto max-w-7xl px-4 py-6 sm:px-6">
-    {% block content %}{% endblock %}
-  </main>
-  <script>
-    // Click-to-sort for any <table class="sortable">. Sort key per cell: data-value if
-    // present, else health/severity rank, else number, else date, else text.
-    (function () {
-      const rank = { 'badge-red': 0, 'badge-amber': 1, 'badge-green': 2,
-                     'chip-critical': 0, 'chip-high': 1, 'chip-medium': 2, 'chip-low': 3 };
-      function key(td) {
-        if (td.dataset.value !== undefined) return isNaN(td.dataset.value) ? td.dataset.value : Number(td.dataset.value);
-        const b = td.querySelector('.badge, .chip');
-        if (b) for (const c of b.classList) if (c in rank) return rank[c];
-        const t = td.textContent.trim();
-        const n = t.replace(/[$,]/g, '').match(/^-?\d+(\.\d+)?/);
-        if (n && /^[-$\d]/.test(t)) return Number(n[0]);
-        const d = Date.parse(t);
-        if (!isNaN(d) && /\d{4}/.test(t)) return d;
-        return t.toLowerCase();
-      }
-      function bind(root) { root.querySelectorAll('table.sortable:not([data-bound])').forEach(table => {
-        table.dataset.bound = '1';
-        const ths = table.querySelectorAll('thead th');
-        ths.forEach((th, i) => {
-          if (!th.textContent.trim()) return;
-          th.addEventListener('click', () => {
-            const dir = th.getAttribute('aria-sort') === 'ascending' ? 'descending' : 'ascending';
-            ths.forEach(o => o.removeAttribute('aria-sort'));
-            th.setAttribute('aria-sort', dir);
-            const tbody = table.tBodies[0];
-            const rows = Array.from(tbody.rows).filter(r => r.cells.length > 1);
-            rows.sort((a, b) => {
-              const ka = key(a.cells[i]), kb = key(b.cells[i]);
-              const c = typeof ka === 'number' && typeof kb === 'number' ? ka - kb : String(ka).localeCompare(String(kb));
-              return dir === 'ascending' ? c : -c;
-            });
-            rows.forEach(r => tbody.appendChild(r));
-          });
-        });
-      }); }
-      bind(document);
-      document.body.addEventListener('htmx:afterSwap', e => bind(e.target));
-    })();
-  </script>
+  </div>
+
+  {# Client peek panel: rows marked data-peek load /clients/<id>/peek into it. #}
+  <div class="scrim" id="scrim"></div>
+  <aside class="drawer" id="drawer" aria-label="Client details"></aside>
+
+  {# Search palette: HTMX fetches results as you type. #}
+  <div class="scrim scrim-pal" id="pal-scrim"></div>
+  <div class="pal" id="pal" role="dialog" aria-label="Search">
+    <div class="pal-in">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+      <input id="search" type="search" name="q" autocomplete="off" placeholder="Search clients or tickets"
+             hx-get="/search" hx-trigger="input changed delay:150ms" hx-target="#search-results" hx-swap="innerHTML">
+    </div>
+    <div class="pal-list" id="search-results"><div class="pal-hint">Type a client name or a ticket like IMPL-104.</div></div>
+    <div class="pal-f"><span><kbd>↑</kbd> <kbd>↓</kbd> move</span><span><kbd>↵</kbd> open</span><span><kbd>esc</kbd> close</span></div>
+  </div>
+  <div class="toast" id="toast" role="status"></div>
+{% endif %}
+  <script src="/static/app.js?v=4"></script>
 </body>
 </html>

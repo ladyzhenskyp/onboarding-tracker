@@ -1,0 +1,41 @@
+{# Quick-look panel for one client, loaded into #drawer by HTMX. The full page is one click away. #}
+{% from "partials/macros.html" import health_badge, severity, days_bar %}
+{% set limit = cfg.stage_max_days.get(client.current_stage.key) %}
+{% set idx = namespace(now=0) %}
+{% for t in timeline %}{% if t.state == 'current' %}{% set idx.now = loop.index0 %}{% endif %}{% endfor %}
+<div class="dr-h">
+  <div><h3>{{ client.name }}</h3><div class="sub" style="margin-top:3px">{{ client.segment|humanize }} · Owner {{ client.owner.name }}</div></div>
+  {{ health_badge(health.colour) }}
+  <button class="x" type="button" aria-label="Close">×</button>
+</div>
+<div class="dr-b">
+  <div class="steps">
+    <span class="prog" data-w="{{ (idx.now * 80 / ([timeline|length - 1, 1]|max))|round|int }}%"></span>
+    {% for t in timeline %}<div class="{{ 'done' if t.state == 'done' else ('now' if t.state == 'current' else '') }}"><b></b>{{ t.stage.name.split(' / ')[0] }}</div>{% endfor %}
+  </div>
+  <div class="kv">
+    <div><div class="lbl">Days in {{ client.current_stage.name.split(' / ')[0] }}</div>{{ days_bar(days_in_stage, limit) }}</div>
+    <div><div class="lbl">Target go-live</div>
+      {% if client.current_stage.key == 'live' %}<span class="gl">Live</span>
+      {% else %}<span class="gl {{ 'gl-late' if days_to_go_live < 0 }}">{{ client.target_go_live_date|date }} · {% if days_to_go_live < 0 %}{{ -days_to_go_live }}d ago{% else %}in {{ days_to_go_live }}d{% endif %}</span>{% endif %}
+    </div>
+  </div>
+  <div>
+    <div class="lbl">Why {{ health.colour }}</div>
+    <div class="whybox whybox-{{ health.colour }}">
+      {% if health.reasons %}<ul>{% for r in health.reasons %}<li>{{ r.message }}</li>{% endfor %}</ul>
+      {% else %}No rules triggered. This account is on track.{% endif %}
+    </div>
+  </div>
+  <div>
+    <div class="lbl">Open blockers</div>
+    {% for b in open_blockers %}
+    <div class="li" style="padding:6px 0"><div class="grow"><div class="t">{{ b.title }}</div><div class="s">{% if b.external_ref %}<span class="ref">{{ b.external_ref }}</span> · {% endif %}open {{ b.age_days(now) }} days</div></div>{{ severity(b.severity) }}</div>
+    {% else %}<div class="sub">No open blockers. Add one if something is in the way.</div>{% endfor %}
+  </div>
+</div>
+<div class="dr-f">
+  {% if next_stage %}<form method="post" action="/clients/{{ client.id }}/stage/advance"><button class="btn" type="submit">Advance to {{ next_stage.name.split(' / ')[0] }} <span class="arr">→</span></button></form>{% endif %}
+  <a class="btn-quiet" href="/clients/{{ client.id }}#blockers">Add blocker</a>
+  <a class="btn-quiet" href="/clients/{{ client.id }}" style="margin-left:auto">Open full page <span class="arr">→</span></a>
+</div>

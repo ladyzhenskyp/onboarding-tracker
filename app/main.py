@@ -12,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.auth import AuthMiddleware
 from app.auth import router as auth_router
-from app.routers import blockers, clients, dashboard, exports, pipeline, team
+from app.routers import blockers, clients, dashboard, exports, insights, pipeline, search, team
 
 app = FastAPI(title="Client Onboarding Tracker", version="0.2.0")
 
@@ -27,6 +27,8 @@ app.include_router(pipeline.router)
 app.include_router(clients.router)
 app.include_router(blockers.router)
 app.include_router(team.router)
+app.include_router(insights.router)
+app.include_router(search.router)
 app.include_router(exports.router)
 
 

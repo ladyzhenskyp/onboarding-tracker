@@ -1,0 +1,15 @@
+{# Search palette results. HTMX swaps this into #search-results as you type. #}
+{% from "partials/macros.html" import severity, health_badge, avatar %}
+{% if not q %}
+<div class="pal-hint">Type a client name or a ticket like IMPL-104.</div>
+{% else %}
+{% if clients %}<div class="pal-g">Clients</div>{% endif %}
+{% for c in clients %}
+<a href="/clients/{{ c.id }}" class="pal-i">{{ avatar(c.name) }}<span class="grow">{{ c.name }}</span><span class="end">{{ c.current_stage.name.split(' / ')[0] }}</span></a>
+{% endfor %}
+{% if blockers %}<div class="pal-g">Blockers</div>{% endif %}
+{% for b in blockers %}
+<a href="/clients/{{ b.client.id }}" class="pal-i"><span class="ref">{{ b.external_ref or '—' }}</span><span class="grow">{{ b.title }}</span><span class="end">{{ b.client.name }}</span></a>
+{% endfor %}
+{% if not clients and not blockers %}<div class="pal-hint">Nothing matches “{{ q }}”. Try a client name or a ticket like IMPL-104.</div>{% endif %}
+{% endif %}

@@ -56,6 +56,15 @@ def _render_detail(
 ):
     """Render the client page. For HTMX requests only the swappable body fragment
     is returned, so an action updates the page in place without a full reload."""
+    context = _detail_context(db, client_id, now, cfg, flash)
+    template = "clients/_body.html" if _is_htmx(request) else "clients/detail.html"
+    return templates.TemplateResponse(request, template, context)
+
+
+def _detail_context(
+    db: Session, client_id: int, now: datetime, cfg: RiskConfig, flash: str | None = None
+) -> dict:
+    """Everything the client templates need; shared by the full page and the peek panel."""
     client = _load_client(db, client_id)
     health = evaluate_client(client, now, cfg)
     open_row = next((h for h in client.stage_history if h.exited_at is None), None)
@@ -63,6 +72,7 @@ def _render_detail(
     stages = ordered_stages(db)
     context = {
         "now": now,
+        "cfg": cfg,
         "today": now.date(),
         "client": client,
         "health": health,
@@ -77,8 +87,7 @@ def _render_detail(
         "closed_blockers": [b for b in client.blockers if not b.is_open],
         "flash": flash,
     }
-    template = "clients/_body.html" if _is_htmx(request) else "clients/detail.html"
-    return templates.TemplateResponse(request, template, context)
+    return context
 
 
 def _after_action(
@@ -104,7 +113,9 @@ def client_list(
     cfg: RiskConfig = Depends(get_risk_config),
 ):
     rows = q.client_health(db, now, cfg)
-    return templates.TemplateResponse(request, "clients/list.html", {"now": now, "rows": rows})
+    return templates.TemplateResponse(
+        request, "clients/list.html", {"now": now, "cfg": cfg, "rows": rows}
+    )
 
 
 @router.get("/{client_id}", name="client_detail")
@@ -116,6 +127,20 @@ def client_detail(
     cfg: RiskConfig = Depends(get_risk_config),
 ):
     return _render_detail(request, db, client_id, now, cfg, request.query_params.get("msg"))
+
+
+@router.get("/{client_id}/peek", name="client_peek")
+def client_peek(
+    client_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    now: datetime = Depends(get_now),
+    cfg: RiskConfig = Depends(get_risk_config),
+):
+    """Quick-look panel: a compact fragment that lists open from any table row.
+    It reuses the full page's context, so the two can never disagree."""
+    context = _detail_context(db, client_id, now, cfg)
+    return templates.TemplateResponse(request, "clients/_peek.html", context)
 
 
 def _timeline(client: Client, stages: list[Stage], now: datetime) -> list[dict]:

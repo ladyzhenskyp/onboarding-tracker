@@ -149,8 +149,8 @@ def test_htmx_stage_error_is_flashed_in_fragment(client):
     assert "already Live" in r.text
 
 
-def test_dashboard_embeds_chart_data(client):
-    r = client.get("/")
+def test_insights_embeds_chart_data(client):
+    r = client.get("/insights")
     assert '"stages"' in r.text and '"threshold"' in r.text
     assert "chart-duration" in r.text
 
@@ -182,3 +182,44 @@ def test_login_then_logout(anon):
     assert anon.get("/team").status_code == 200
     anon.post("/logout")
     assert anon.get("/team", follow_redirects=False).status_code == 303
+
+
+# ---- insights & search ---------------------------------------------------------
+def test_insights_page_and_filters(client):
+    r = client.get("/insights")
+    assert r.status_code == 200
+    assert "completed stage visit" in r.text
+    assert "chart-duration" in r.text
+    r = client.get("/insights?segment=enterprise&stage=uat")
+    assert r.status_code == 200
+    r = client.get("/insights?kickoff_from=2099-01-01")
+    assert r.status_code == 200
+    assert "No accounts match" in r.text
+    assert client.get("/insights?kickoff_from=not-a-date").status_code == 422
+
+
+def test_dashboard_has_no_charts_but_links_to_insights(client):
+    r = client.get("/")
+    assert "chart.umd.js" not in r.text
+    assert 'href="/insights"' in r.text
+    assert "This week" in r.text
+
+
+def test_search_matches_clients_and_ticket_refs(client):
+    r = client.get("/search?q=ledger")
+    assert r.status_code == 200
+    assert "Ledgerline Capital" in r.text
+    with SessionLocal() as db:
+        ref = db.scalar(select(Blocker.external_ref).where(Blocker.external_ref.is_not(None)))
+    r = client.get(f"/search?q={ref}")
+    assert ref in r.text
+    assert "Type a client name" in client.get("/search?q=").text  # empty query -> hint
+    assert "Nothing matches" in client.get("/search?q=zzzzqq").text
+
+
+def test_client_peek_is_a_fragment_with_link_to_full_page(client):
+    r = client.get("/clients/1/peek")
+    assert r.status_code == 200
+    assert "<html" not in r.text  # a fragment for the side panel, not a page
+    assert "Open full page" in r.text and 'href="/clients/1"' in r.text
+    assert client.get("/clients/9999/peek").status_code == 404

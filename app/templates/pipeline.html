@@ -1,95 +1,56 @@
 {% extends "base.html" %}
-{% from "partials/macros.html" import health_badge %}
+{% from "partials/macros.html" import avatar %}
 {% block title %}Pipeline · Onboarding Tracker{% endblock %}
 {% block content %}
-{% set short = {'critical_blocker': 'Critical blocker', 'stale_high_blocker': 'Stale high blocker',
-                'overdue_milestones': 'Overdue milestones', 'go_live_approaching': 'Go-live soon',
-                'go_live_missed': 'Go-live missed', 'stage_overdue': 'Over stage limit'} %}
-<div class="flex flex-wrap items-end justify-between gap-3">
-  <div>
-    <div class="kicker">Kickoff → Live</div>
-    <h1 class="font-display text-3xl font-semibold">Pipeline board</h1>
-  </div>
-  {# health filter: hides cards client-side; counts in the strip below update too #}
-  <div class="flex items-center gap-1 rounded-full border border-line bg-surface p-1 text-sm" role="group" aria-label="Filter by health">
-    <button type="button" data-filter="all" class="filter-btn rounded-full px-3 py-1 font-semibold" aria-pressed="true">All</button>
-    <button type="button" data-filter="red" class="filter-btn rounded-full px-3 py-1 font-semibold text-health-red" aria-pressed="false">Red</button>
-    <button type="button" data-filter="amber" class="filter-btn rounded-full px-3 py-1 font-semibold text-health-amber" aria-pressed="false">Amber</button>
-    <button type="button" data-filter="green" class="filter-btn rounded-full px-3 py-1 font-semibold text-health-green" aria-pressed="false">Green</button>
+<div class="ph">
+  <div><h1>Pipeline</h1><p>Every account by stage. Filter by health to focus.</p></div>
+  {# health filter: dims the cards that don't match, so the board never jumps #}
+  <div class="filters" role="group" aria-label="Filter by health">
+    {% for f in ('all', 'red', 'amber', 'green') %}<button type="button" class="f" data-filter="{{ f }}" aria-pressed="{{ 'true' if f == 'all' else 'false' }}">{{ f|capitalize }}</button>{% endfor %}
   </div>
 </div>
 
-{# ---- summary strip: one cell per stage with count + health mix ---- #}
-<ol class="mt-5 grid grid-cols-5 gap-1.5">
+<div class="board">
+  {% set n = namespace(i=0) %}
   {% for col in columns %}
-  {% set reds = col.cards|selectattr('health.colour','equalto','red')|list|length %}
-  {% set ambers = col.cards|selectattr('health.colour','equalto','amber')|list|length %}
-  {% set greens = col.cards|selectattr('health.colour','equalto','green')|list|length %}
-  <li class="card px-3 py-2.5">
-    <div class="flex items-baseline justify-between">
-      <span class="font-display text-sm font-semibold">{{ col.stage.name.split(' / ')[0] }}</span>
-      <span class="font-num text-xl font-semibold tabular-nums" data-count="{{ col.stage.key }}">{{ col.cards|length }}</span>
+  {% set lim = cfg.stage_max_days.get(col.stage.key) %}
+  <section data-column="{{ col.stage.key }}">
+    <div class="col-h">{{ col.stage.name.split(' / ')[0] }}<span class="n" data-stage-count>{{ col.cards|length }}</span></div>
+    <div class="col">
+      {% for h in col.cards %}
+      {% set pct = (100 * h.days_in_stage / lim)|round|int if lim else 0 %}
+      <div class="pc rise" style="--i:{{ n.i }}" data-health="{{ h.health.colour }}" data-peek
+           hx-get="/clients/{{ h.client.id }}/peek" hx-target="#drawer" hx-swap="innerHTML"
+           title="{{ h.client.owner.name }} · go-live {{ h.client.target_go_live_date|date }}{% for r in h.health.reasons %}&#10;• {{ r.message }}{% endfor %}">
+        <div class="top"><a class="cn" href="/clients/{{ h.client.id }}">{{ h.client.name }}</a><span class="dot dot-{{ h.health.colour }}"></span></div>
+        {% if lim %}<span class="dbar dbar-{{ 'red' if pct > 100 else ('amber' if pct >= 80 else 'green') }}"><i style="--w:{{ [pct, 100]|min }}%;--i:{{ n.i }}"></i></span>{% endif %}
+        <div class="meta"><span>{% if lim %}{{ h.days_in_stage }} of {{ lim }} days{% else %}Live {{ h.days_in_stage }} days{% endif %}</span>{{ avatar(h.client.owner.name) }}</div>
+      </div>
+      {% set n.i = n.i + 1 %}
+      {% else %}<div class="empty">No accounts in this stage.</div>{% endfor %}
     </div>
-    <div class="mt-2 flex h-1.5 overflow-hidden rounded-full bg-sand" title="{{ reds }} red · {{ ambers }} amber · {{ greens }} green">
-      {% if reds %}<span class="bg-health-red" style="flex:{{ reds }}"></span>{% endif %}
-      {% if ambers %}<span class="bg-health-amber" style="flex:{{ ambers }}"></span>{% endif %}
-      {% if greens %}<span class="bg-health-green" style="flex:{{ greens }}"></span>{% endif %}
-    </div>
-  </li>
-  {% endfor %}
-</ol>
-
-{# ---- columns: one line per account, details on hover ---- #}
-<div class="mt-3 grid gap-1.5 md:grid-cols-5">
-  {% for col in columns %}
-  <div class="rounded-lg bg-sand/50 p-1.5" data-column="{{ col.stage.key }}">
-    <ul class="space-y-1">
-    {% for h in col.cards %}
-    <li class="pipeline-card" data-health="{{ h.health.colour }}">
-      <a href="/clients/{{ h.client.id }}" class="card group block border-l-[3px] px-2.5 py-2 text-sm hover:shadow-md
-          {{ 'border-l-health-red' if h.health.colour == 'red' else ('border-l-health-amber' if h.health.colour == 'amber' else 'border-l-health-green') }}"
-         title="{{ h.client.owner.name }} · {{ h.days_in_stage }}d in stage · go-live {{ h.client.target_go_live_date|date }}{% for r in h.health.reasons %}
-• {{ r.message }}{% endfor %}">
-        <div class="flex items-center justify-between gap-2">
-          <span class="truncate font-semibold leading-tight">{{ h.client.name }}</span>
-          <span class="shrink-0 font-num text-xs tabular-nums text-ink-3">{{ h.days_in_stage }}d</span>
-        </div>
-        <div class="mt-0.5 flex items-center justify-between gap-2 text-xs text-ink-3">
-          <span class="shrink-0">{{ h.client.owner.name.split(' ')[0] }}</span>
-          {% if h.health.colour != 'green' %}<span class="truncate font-medium {{ 'text-health-red' if h.health.colour == 'red' else 'text-health-amber' }}">{{ short[h.health.reasons[0].rule_id] }}{% if h.health.reasons|length > 1 %} +{{ h.health.reasons|length - 1 }}{% endif %}</span>{% endif %}
-        </div>
-      </a>
-    </li>
-    {% endfor %}
-    <li class="empty-note hidden px-2 py-1 text-xs text-ink-3">Nothing here</li>
-    </ul>
-  </div>
+  </section>
   {% endfor %}
 </div>
-<p class="mt-3 text-xs text-ink-3">Each card shows the account, days in stage, owner, and — when at risk — the leading reason. Hover for the full detail; click to open.</p>
 
 <script>
   (function () {
-    const buttons = document.querySelectorAll('.filter-btn');
+    const buttons = document.querySelectorAll('.f[data-filter]');
     function apply(filter) {
-      buttons.forEach(b => {
-        const on = b.dataset.filter === filter;
-        b.setAttribute('aria-pressed', on);
-        b.classList.toggle('bg-sand', on);
-      });
+      buttons.forEach(b => b.setAttribute('aria-pressed', b.dataset.filter === filter));
       document.querySelectorAll('[data-column]').forEach(col => {
-        let visible = 0;
-        col.querySelectorAll('.pipeline-card').forEach(li => {
-          const show = filter === 'all' || li.dataset.health === filter;
-          li.hidden = !show; if (show) visible++;
+        let n = 0;
+        col.querySelectorAll('.pc').forEach(card => {
+          const show = filter === 'all' || card.dataset.health === filter;
+          card.classList.toggle('dim', !show); if (show) n++;
         });
-        col.querySelector('.empty-note').hidden = visible > 0;
-        const c = document.querySelector(`[data-count="${col.dataset.column}"]`);
-        if (c) c.textContent = visible;
+        col.querySelector('[data-stage-count]').textContent = n;
       });
     }
     buttons.forEach(b => b.addEventListener('click', () => apply(b.dataset.filter)));
-    apply('all');
+    // the dashboard tiles link here with ?health=red|amber|green
+    const initial = new URLSearchParams(location.search).get('health');
+    apply(['red', 'amber', 'green'].includes(initial) ? initial : 'all');
   })();
 </script>
 {% endblock %}

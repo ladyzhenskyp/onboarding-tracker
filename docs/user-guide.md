@@ -38,10 +38,21 @@ still turns them red.
 
 ## Pages
 
-**Dashboard** (`/`) — the morning view. Counts by health and by stage, three
-charts (accounts by stage, health mix, average days in stage against each
-stage's limit), the at-risk list with reasons, go-lives in the next 30 days,
-overdue milestones, and the oldest open blockers. CSV export links at the top.
+**Dashboard** (`/`) — the triage view: what needs a human today. Four tiles
+(accounts, red, amber, green — click one to open the pipeline filtered to that
+colour), the at-risk list with reasons and a days-in-stage bar against each
+stage's limit, and a "This week" strip with the three nearest go-lives and the
+three oldest open blockers. Charts and aggregate tables live on Insights.
+
+**Insights** (`/insights`) — the analytical view. Filter by owner, segment,
+current stage and kickoff date range (the filters are in the URL, so a view can
+be shared as a link); three charts (accounts by stage, health mix, average days
+in stage vs. limit), time-in-stage table, overdue milestones and oldest open
+blockers, all computed over the same filtered set of accounts.
+
+**Search** — the box in the header finds clients by name and blockers by
+ticket ref or title as you type. Press `/` anywhere to focus it, arrow keys to
+move, Enter to open the top result.
 
 **Pipeline** (`/pipeline`) — one column per stage. The strip on top shows the
 count and health mix per stage; each card shows the account, days in stage,
@@ -90,8 +101,7 @@ severity by seriousness.
 
 ## Exports
 
-`Export pipeline.csv` and `Export blockers.csv` (dashboard header, blockers
-page) download Excel-ready CSV files: the pipeline export includes each
+The `Export ▾` menu in the header downloads Excel-ready CSV files: the pipeline export includes each
 account's health colour and reasons; the blockers export includes age in days
 and open/closed status.
 

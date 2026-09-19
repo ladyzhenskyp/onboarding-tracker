@@ -2,14 +2,14 @@
    posts with HTMX and swaps this whole block, so the health badge, timeline, tables
    and activity log all stay in sync without a page reload. Without JavaScript the
    same forms still work: the server answers with a redirect instead. #}
-{% from "partials/macros.html" import health_badge, severity, reasons, section_title %}
+{% from "partials/macros.html" import health_badge, severity, reasons, days_bar, section_title %}
 {% set hx = 'hx-target="#client-body" hx-swap="outerHTML"' %}
 <div id="client-body">
-{% if flash %}<div class="mb-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">{{ flash }}</div>{% endif %}
+{% if flash %}<div class="mb-3 rounded-md border border-health-amber/30 bg-health-ambersoft px-3 py-2 text-sm text-health-amber">{{ flash }}</div>{% endif %}
 
 <div class="flex flex-wrap items-start justify-between gap-3">
   <div>
-    <h1 class="flex flex-wrap items-center gap-3 font-display text-3xl font-semibold">{{ client.name }} {{ health_badge(health.colour) }}</h1>
+    <h1 class="flex flex-wrap items-center gap-3">{{ client.name }} {{ health_badge(health.colour) }}</h1>
     <div class="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-ink-2">
       <span>{{ client.segment|humanize }}</span>
       <span>{{ client.contract_value|money }}</span>
@@ -20,20 +20,20 @@
     </div>
   </div>
   {% if health.reasons %}
-  <div class="card max-w-md border-l-4 px-3 py-2 text-sm {{ 'border-l-health-red' if health.colour == 'red' else 'border-l-health-amber' }}">
+  <div class="rounded-lg max-w-md px-3.5 py-2.5 text-[13px] {{ 'bg-health-redsoft text-health-red' if health.colour == 'red' else 'bg-health-ambersoft text-health-amber' }}">
     <div class="font-semibold">Why {{ health.colour }}</div>{{ reasons(health.reasons) }}
   </div>
   {% endif %}
 </div>
 
 {# ---- stage timeline ---- #}
-<div class="card mt-5 p-4">
+<div class="panel mt-5">
   <div class="flex flex-wrap items-center justify-between gap-3">
-    <div class="text-sm"><span class="font-display text-base font-semibold">Stage: {{ client.current_stage.name }}</span> <span class="text-ink-3">· {{ days_in_stage }} days</span></div>
+    <div class="flex flex-wrap items-center gap-3 text-sm"><span class="text-[14px] font-semibold">Stage: {{ client.current_stage.name }}</span> {{ days_bar(days_in_stage, cfg.stage_max_days.get(client.current_stage.key)) }}</div>
     <div class="flex flex-wrap items-center gap-2">
       {% if next_stage %}
       <form hx-post="/clients/{{ client.id }}/stage/advance" {{ hx|safe }} method="post" action="/clients/{{ client.id }}/stage/advance">
-        <button class="btn">Advance to {{ next_stage.name }} →</button>
+        <button class="btn">Advance to {{ next_stage.name.split(' / ')[0] }} →</button>
       </form>
       {% endif %}
       <form hx-post="/clients/{{ client.id }}/stage" {{ hx|safe }} method="post" action="/clients/{{ client.id }}/stage" class="flex items-center gap-2">
@@ -45,8 +45,8 @@
   </div>
   <ol class="mt-4 grid grid-cols-5 gap-1.5">
     {% for t in timeline %}
-    <li class="rounded-md border-t-4 bg-sand/50 px-2.5 py-2 text-xs
-        {{ 'border-t-health-green' if t.state == 'done' else ('border-t-brand bg-brand-soft' if t.state == 'current' else 'border-t-line') }}">
+    <li class="rounded-md border-t-4 px-2.5 py-2 text-xs
+        {{ 'border-t-health-green bg-chip' if t.state == 'done' else ('border-t-brand bg-mint' if t.state == 'current' else 'border-t-line bg-chip/60') }}">
       <div class="font-semibold {{ 'text-brand' if t.state == 'current' else ('text-ink' if t.state == 'done' else 'text-ink-3') }}" title="{{ t.stage.name }}">{{ t.stage.name.split(' / ')[0] }}</div>
       <div class="mt-0.5 text-ink-3">
         {% if t.state == 'current' %}{{ t.days }}d so far{% elif t.state == 'done' %}{{ t.days }}d{% else %}&nbsp;{% endif %}
@@ -65,17 +65,17 @@
       <tbody>
       {% for m in client.milestones %}
       <tr class="{{ 'text-ink-3' if m.status == 'done' }}">
-        <td class="td min-w-[12rem]">{{ m.title }}</td>
-        <td class="td tc whitespace-nowrap">{{ m.due_date|date }}</td>
-        <td class="td tc whitespace-nowrap">{% if m.is_overdue(today) %}<span class="chip chip-critical">Overdue</span>{% elif m.status == 'done' %}<span class="text-health-green">✓ Done</span>{% else %}{{ m.status|humanize }}{% endif %}</td>
+        <td class="td">{{ m.title }}</td>
+        <td class="td whitespace-nowrap">{{ m.due_date|date }}</td>
+        <td class="td whitespace-nowrap">{% if m.is_overdue(today) %}<span class="chip chip-critical">Overdue</span>{% elif m.status == 'done' %}<span class="text-health-green">✓ Done</span>{% else %}{{ m.status|humanize }}{% endif %}</td>
         <td class="td whitespace-nowrap">{{ m.owner.name if m.owner else '—' }}</td>
-        <td class="td text-right">{% if m.status != 'done' %}<form hx-post="/clients/{{ client.id }}/milestones/{{ m.id }}/complete" {{ hx|safe }} method="post" action="/clients/{{ client.id }}/milestones/{{ m.id }}/complete"><button class="btn-quiet btn-sm">Mark done</button></form>{% endif %}</td>
+        <td class="td whitespace-nowrap text-right">{% if m.status != 'done' %}<form hx-post="/clients/{{ client.id }}/milestones/{{ m.id }}/complete" {{ hx|safe }} method="post" action="/clients/{{ client.id }}/milestones/{{ m.id }}/complete"><button class="btn-quiet btn-sm">Mark done</button></form>{% endif %}</td>
       </tr>
-      {% endfor %}
+      {% else %}<tr><td colspan="5" class="empty">No milestones yet — add the first one below.</td></tr>{% endfor %}
       </tbody>
     </table></div>
     <details class="mt-2 text-sm"><summary class="cursor-pointer text-ink-2 hover:text-ink">Add milestone</summary>
-      <form hx-post="/clients/{{ client.id }}/milestones" {{ hx|safe }} method="post" action="/clients/{{ client.id }}/milestones" class="card mt-2 grid gap-2 p-3 sm:grid-cols-3">
+      <form hx-post="/clients/{{ client.id }}/milestones" {{ hx|safe }} method="post" action="/clients/{{ client.id }}/milestones" class="panel mt-2 grid gap-2 p-3 sm:grid-cols-3">
         <input name="title" class="input sm:col-span-3" placeholder="Title" required>
         <input name="due_date" type="date" class="input" required>
         <select name="owner_id" class="input"><option value="">Owner (optional)</option>{% for u in users %}<option value="{{ u.id }}">{{ u.name }}</option>{% endfor %}</select>
@@ -92,21 +92,21 @@
       <tbody>
       {% for b in open_blockers %}
       <tr>
-        <td class="td min-w-[14rem]">{{ b.title }}{% if b.description %}<div class="text-xs text-ink-3">{{ b.description }}</div>{% endif %}</td>
-        <td class="td tc">{{ severity(b.severity) }}</td>
+        <td class="td">{{ b.title }}{% if b.description %}<div class="text-xs text-ink-3">{{ b.description }}</div>{% endif %}</td>
+        <td class="td">{{ severity(b.severity) }}</td>
         <td class="td num">{{ b.age_days(now) }}d</td>
         <td class="td whitespace-nowrap">{{ b.owner.name if b.owner else '—' }}</td>
-        <td class="td tc font-mono text-xs text-ink-3">{{ b.external_ref or '' }}</td>
-        <td class="td text-right"><form hx-post="/clients/{{ client.id }}/blockers/{{ b.id }}/resolve" {{ hx|safe }} method="post" action="/clients/{{ client.id }}/blockers/{{ b.id }}/resolve"><button class="btn-quiet btn-sm">Resolve</button></form></td>
+        <td class="td whitespace-nowrap font-mono text-xs text-ink-3">{{ b.external_ref or '' }}</td>
+        <td class="td whitespace-nowrap text-right"><form hx-post="/clients/{{ client.id }}/blockers/{{ b.id }}/resolve" {{ hx|safe }} method="post" action="/clients/{{ client.id }}/blockers/{{ b.id }}/resolve"><button class="btn-quiet btn-sm">Resolve</button></form></td>
       </tr>
-      {% else %}<tr><td colspan="6" class="td text-ink-3">No open blockers.</td></tr>{% endfor %}
+      {% else %}<tr><td colspan="6" class="empty">No open blockers.</td></tr>{% endfor %}
       {% for b in closed_blockers %}
-      <tr class="text-ink-3"><td class="td line-through">{{ b.title }}</td><td class="td tc">{{ severity(b.severity) }}</td><td class="td num">{{ b.age_days(now) }}d</td><td class="td whitespace-nowrap">{{ b.owner.name if b.owner else '—' }}</td><td class="td font-mono text-xs">{{ b.external_ref or '' }}</td><td class="td whitespace-nowrap text-right text-xs">resolved {{ b.resolved_at|date }}</td></tr>
+      <tr class="text-ink-3"><td class="td line-through">{{ b.title }}</td><td class="td">{{ severity(b.severity) }}</td><td class="td num">{{ b.age_days(now) }}d</td><td class="td whitespace-nowrap">{{ b.owner.name if b.owner else '—' }}</td><td class="td font-mono text-xs">{{ b.external_ref or '' }}</td><td class="td whitespace-nowrap text-right text-xs">resolved {{ b.resolved_at|date }}</td></tr>
       {% endfor %}
       </tbody>
     </table></div>
     <details class="mt-2 text-sm"><summary class="cursor-pointer text-ink-2 hover:text-ink">Add blocker</summary>
-      <form hx-post="/clients/{{ client.id }}/blockers" {{ hx|safe }} method="post" action="/clients/{{ client.id }}/blockers" class="card mt-2 grid gap-2 p-3 sm:grid-cols-3">
+      <form hx-post="/clients/{{ client.id }}/blockers" {{ hx|safe }} method="post" action="/clients/{{ client.id }}/blockers" class="panel mt-2 grid gap-2 p-3 sm:grid-cols-3">
         <input name="title" class="input sm:col-span-3" placeholder="Title" required>
         <select name="severity" class="input">{% for s in severities %}<option value="{{ s }}" {% if s == 'medium' %}selected{% endif %}>{{ s|capitalize }}</option>{% endfor %}</select>
         <input name="external_ref" class="input" placeholder="Ticket ref, e.g. IMPL-142">
@@ -120,7 +120,7 @@
 
 {# ---- notes ---- #}
 {{ section_title("Notes & activity", client.notes|length) }}
-<form hx-post="/clients/{{ client.id }}/notes" {{ hx|safe }} method="post" action="/clients/{{ client.id }}/notes" class="card flex flex-col gap-2 p-3 sm:flex-row sm:items-start">
+<form hx-post="/clients/{{ client.id }}/notes" {{ hx|safe }} method="post" action="/clients/{{ client.id }}/notes" class="panel flex flex-col gap-2 p-3 sm:flex-row sm:items-start">
   <textarea name="body" rows="2" class="input flex-1" placeholder="e.g. Biweekly sync: client still needs to provide SSO metadata" required></textarea>
   <select name="author_id" class="input sm:w-44"><option value="">Author (optional)</option>{% for u in users %}<option value="{{ u.id }}">{{ u.name }}</option>{% endfor %}</select>
   <button class="btn justify-center">Add note</button>
@@ -131,7 +131,7 @@
     <div class="text-xs text-ink-3">{{ n.created_at|date }}{% if n.author %}<br>{{ n.author.name }}{% endif %}</div>
     <div class="{{ 'text-ink-2 italic' if n.body.startswith('Stage changed') }}">{{ n.body }}</div>
   </li>
-  {% else %}<li class="px-3 py-2 text-ink-3">No notes yet.</li>{% endfor %}
+  {% else %}<li class="empty">No notes yet — the stage log and your updates will appear here.</li>{% endfor %}
 </ol>
 
 {% if client.meetings %}
@@ -139,7 +139,7 @@
 <div class="card overflow-x-auto"><table class="sortable w-full text-sm">
   <thead><tr><th class="th">Date</th><th class="th th-l">Summary</th><th class="th th-l">Attendees</th><th class="th th-l">Action items</th></tr></thead>
   <tbody>{% for m in client.meetings %}
-  <tr><td class="td tc whitespace-nowrap">{{ m.held_at|date }}</td><td class="td">{{ m.summary }}</td><td class="td text-xs text-ink-2">{{ m.attendees|map(attribute='name')|join(', ') }}</td><td class="td whitespace-pre-line text-xs text-ink-2">{{ m.action_items }}</td></tr>
+  <tr><td class="td whitespace-nowrap">{{ m.held_at|date }}</td><td class="td">{{ m.summary }}</td><td class="td text-xs text-ink-2">{{ m.attendees|map(attribute='name')|join(', ') }}</td><td class="td whitespace-pre-line text-xs text-ink-2">{{ m.action_items }}</td></tr>
   {% endfor %}</tbody>
 </table></div>
 {% endif %}

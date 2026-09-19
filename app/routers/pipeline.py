@@ -28,4 +28,6 @@ def pipeline(
             key=lambda h: (-{"red": 2, "amber": 1, "green": 0}[h.health.colour], -h.days_in_stage),
         )
         columns.append({"stage": stage, "cards": cards})
-    return templates.TemplateResponse(request, "pipeline.html", {"now": now, "columns": columns})
+    return templates.TemplateResponse(
+        request, "pipeline.html", {"now": now, "cfg": cfg, "columns": columns}
+    )

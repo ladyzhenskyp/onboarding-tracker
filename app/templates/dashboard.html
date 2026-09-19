@@ -1,130 +1,70 @@
 {% extends "base.html" %}
-{% from "partials/macros.html" import health_badge, severity, reasons, stage_pill, section_title %}
+{% from "partials/macros.html" import health_badge, severity, stage_pill, days_bar, avatar, section_title %}
 {% block title %}Dashboard · Onboarding Tracker{% endblock %}
-{% block head %}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js" crossorigin="anonymous"></script>
-{% endblock %}
 {% block content %}
-<div class="flex flex-wrap items-end justify-between gap-3">
-  <div><div class="kicker">Implementation pipeline</div><h1 class="font-display text-3xl font-semibold">Dashboard</h1></div>
-  <div class="text-sm text-ink-3">
-    Export <a class="link" href="/export/pipeline.csv">pipeline.csv</a> · <a class="link" href="/export/blockers.csv">blockers.csv</a>
-  </div>
+<div class="ph">
+  <div><h1>Dashboard</h1><p>What needs attention today across {{ total_clients }} accounts.</p></div>
+  <a class="btn-quiet" href="/insights">Charts and trends <span class="arr">→</span></a>
 </div>
 
-{# ---- KPI tiles ---- #}
-<div class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-  <div class="card border-l-4 border-l-brand p-4"><div class="stat">{{ total_clients }}</div><div class="caption mt-1">Accounts onboarding</div></div>
-  <div class="card border-l-4 border-l-health-red p-4"><div class="stat text-health-red">{{ health_counts.red }}</div><div class="caption mt-1"><b class="text-health-red">Red</b> · needs action now</div></div>
-  <div class="card border-l-4 border-l-health-amber p-4"><div class="stat text-health-amber">{{ health_counts.amber }}</div><div class="caption mt-1"><b class="text-health-amber">Amber</b> · watch closely</div></div>
-  <div class="card border-l-4 border-l-health-green p-4"><div class="stat text-health-green">{{ health_counts.green }}</div><div class="caption mt-1"><b class="text-health-green">Green</b> · on track</div></div>
+{# ---- KPI tiles (tonal): the whole tile carries the status tint; each links to the filtered pipeline ---- #}
+{% set captions = {'red': 'need action now', 'amber': 'watch closely', 'green': 'on track'} %}
+<div class="tiles">
+  <a href="/clients" class="tile tile-neutral">
+    <span class="k">Accounts</span><span class="v" data-count="{{ total_clients }}">{{ total_clients }}</span><span class="c">onboarding or live</span>
+    <span class="mix">{% for c in ('red', 'amber', 'green') %}{% if health_counts[c] %}<i style="flex:{{ health_counts[c] }};background:var(--{{ c }}-f)"></i>{% endif %}{% endfor %}</span>
+  </a>
+  {% for c in ('red', 'amber', 'green') %}
+  {% set pct = (100 * health_counts[c] / total_clients)|round|int if total_clients else 0 %}
+  <a href="/pipeline?health={{ c }}" class="tile tile-{{ c }}">
+    <span class="k"><i></i>{{ c|capitalize }}<em>{{ pct }}%</em></span><span class="v" data-count="{{ health_counts[c] }}">{{ health_counts[c] }}</span><span class="c">{{ captions[c] }}</span>
+    <span class="share"><i style="--w:{{ pct }}%"></i></span>
+  </a>
+  {% endfor %}
 </div>
 
-{# ---- charts ---- #}
-<div class="mt-4 grid gap-3 lg:grid-cols-3">
-  <div class="card p-4">
-    <div class="mb-2 font-display text-base font-semibold">Accounts by stage</div>
-    <div class="relative h-44"><canvas id="chart-stages" role="img" aria-label="Bar chart of accounts per pipeline stage"></canvas></div>
-  </div>
-  <div class="card p-4">
-    <div class="mb-2 font-display text-base font-semibold">Health mix</div>
-    <div class="relative h-44"><canvas id="chart-health" role="img" aria-label="Bar chart of accounts by health colour"></canvas></div>
-  </div>
-  <div class="card p-4">
-    <div class="mb-2 font-display text-base font-semibold">Average days in stage <span class="font-normal text-ink-3">vs. amber threshold</span></div>
-    <div class="relative h-44"><canvas id="chart-duration" role="img" aria-label="Bar chart of average days spent in each stage against its threshold"></canvas></div>
-  </div>
-</div>
-
-{# ---- at-risk list ---- #}
+{# ---- at-risk list: centred columns with fixed widths so bars and initials line up ---- #}
 {{ section_title("At-risk accounts", at_risk|length) }}
-<div class="card overflow-x-auto">
-<table class="sortable w-full text-sm">
-  <thead><tr><th class="th th-l">Client</th><th class="th">Health</th><th class="th">Stage</th><th class="th num">Days in stage</th><th class="th num">Go-live in</th><th class="th th-l">Owner</th><th class="th th-l">Why</th></tr></thead>
+<div class="card scroll">
+<table class="grid-table sortable">
+  <colgroup><col style="width:17%"><col style="width:9%"><col style="width:11%"><col style="width:21%"><col style="width:9%"><col style="width:15%"><col style="width:18%"></colgroup>
+  <thead><tr><th class="th">Client</th><th class="th">Health</th><th class="th">Stage</th><th class="th">Days in stage</th><th class="th">Go-live</th><th class="th">Owner</th><th class="th">Why</th></tr></thead>
   <tbody>
   {% for h in at_risk %}
-  <tr class="hover:bg-sand/40">
-    <td class="td"><a class="link" href="/clients/{{ h.client.id }}">{{ h.client.name }}</a><div class="text-xs text-ink-3">{{ h.client.segment|humanize }}</div></td>
-    <td class="td tc">{{ health_badge(h.health.colour) }}</td>
-    <td class="td tc">{{ stage_pill(h.client.current_stage.name) }}</td>
-    <td class="td num">{{ h.days_in_stage }}</td>
-    <td class="td num whitespace-nowrap {{ 'text-health-red font-semibold' if h.days_to_go_live < 0 }}" data-value="{{ h.days_to_go_live }}">{% if h.days_to_go_live < 0 %}{{ -h.days_to_go_live }}d ago{% else %}{{ h.days_to_go_live }}d{% endif %}</td>
-    <td class="td whitespace-nowrap">{{ h.client.owner.name }}</td>
-    <td class="td">{{ reasons(h.health.reasons) }}</td>
+  <tr class="rise" style="--i:{{ loop.index0 }}" tabindex="0" data-peek hx-get="/clients/{{ h.client.id }}/peek" hx-target="#drawer" hx-swap="innerHTML">
+    <td class="td"><a class="cn" href="/clients/{{ h.client.id }}">{{ h.client.name }}</a><div class="sub">{{ h.client.segment|humanize }}</div></td>
+    <td class="td">{{ health_badge(h.health.colour) }}</td>
+    <td class="td">{{ stage_pill(h.client.current_stage.name) }}</td>
+    <td class="td" data-value="{{ h.days_in_stage }}">{{ days_bar(h.days_in_stage, cfg.stage_max_days.get(h.client.current_stage.key), loop.index0) }}</td>
+    <td class="td" data-value="{{ h.days_to_go_live }}"><span class="gl {{ 'gl-late' if h.days_to_go_live < 0 }}">{% if h.days_to_go_live < 0 %}{{ -h.days_to_go_live }}d ago{% else %}in {{ h.days_to_go_live }}d{% endif %}</span></td>
+    <td class="td" data-value="{{ h.client.owner.name }}"><span class="owner">{{ avatar(h.client.owner.name) }}{{ h.client.owner.name }}</span></td>
+    <td class="td"><div class="why" title="{{ h.health.reasons|map(attribute='message')|join(' · ') }}">{{ h.health.reasons[0].message }}{% if h.health.reasons|length > 1 %} <em>+{{ h.health.reasons|length - 1 }}</em>{% endif %}</div></td>
   </tr>
-  {% else %}<tr><td colspan="7" class="td text-ink-3">Nothing at risk.</td></tr>{% endfor %}
+  {% else %}<tr><td colspan="7" class="empty">Nothing at risk right now — every account is green.</td></tr>{% endfor %}
   </tbody>
 </table>
 </div>
 
-<div class="grid gap-6 lg:grid-cols-2">
-  <div>
-    {{ section_title("Go-lives in the next 30 days", upcoming|length) }}
-    <div class="card overflow-x-auto"><table class="sortable w-full text-sm">
-      <thead><tr><th class="th th-l">Client</th><th class="th">Target</th><th class="th">Stage</th><th class="th">Health</th></tr></thead>
-      <tbody>{% for h in upcoming %}
-      <tr><td class="td"><a class="link" href="/clients/{{ h.client.id }}">{{ h.client.name }}</a></td><td class="td tc whitespace-nowrap">{{ h.client.target_go_live_date|date }}</td><td class="td tc">{{ stage_pill(h.client.current_stage.name) }}</td><td class="td tc">{{ health_badge(h.health.colour) }}</td></tr>
-      {% else %}<tr><td colspan="4" class="td text-ink-3">None scheduled.</td></tr>{% endfor %}</tbody>
-    </table></div>
-
-    {{ section_title("Oldest open blockers") }}
-    <div class="card overflow-x-auto"><table class="sortable w-full text-sm">
-      <thead><tr><th class="th th-l">Client</th><th class="th th-l">Blocker</th><th class="th">Sev</th><th class="th num">Age</th><th class="th">Ref</th></tr></thead>
-      <tbody>{% for b in oldest_blockers %}
-      <tr><td class="td"><a class="link" href="/clients/{{ b.client.id }}">{{ b.client.name }}</a></td><td class="td">{{ b.title }}</td><td class="td tc">{{ severity(b.severity) }}</td><td class="td num">{{ b.age_days(now) }}d</td><td class="td tc font-mono text-xs text-ink-3">{{ b.external_ref or '' }}</td></tr>
-      {% else %}<tr><td colspan="5" class="td text-ink-3">No open blockers.</td></tr>{% endfor %}</tbody>
-    </table></div>
+{# ---- This week: the two things most likely to need a call today ---- #}
+{{ section_title("This week") }}
+<div class="two">
+  <div class="card list">
+    <div class="sec-h"><h3>Go-lives in the next 14 days</h3><a href="/clients">All clients</a></div>
+    {% for h in upcoming %}
+    <div class="li" data-peek hx-get="/clients/{{ h.client.id }}/peek" hx-target="#drawer" hx-swap="innerHTML">
+      <div class="grow"><a class="t" href="/clients/{{ h.client.id }}">{{ h.client.name }}</a><div class="s">{{ h.client.current_stage.name.split(' / ')[0] }} · {{ h.client.owner.name }}</div></div>
+      <div class="r"><div class="gl {{ 'gl-late' if h.days_to_go_live < 0 }}">{% if h.days_to_go_live < 0 %}{{ -h.days_to_go_live }}d overdue{% elif h.days_to_go_live == 0 %}Today{% else %}in {{ h.days_to_go_live }}d{% endif %}</div><div class="sub">{{ h.client.target_go_live_date|date }}</div></div>
+    </div>
+    {% else %}<div class="empty">No go-lives scheduled in the next two weeks.</div>{% endfor %}
   </div>
-  <div>
-    {{ section_title("Overdue milestones", overdue|length) }}
-    <div class="card overflow-x-auto"><table class="sortable w-full text-sm">
-      <thead><tr><th class="th th-l">Client</th><th class="th th-l">Milestone</th><th class="th">Due</th><th class="th th-l">Owner</th></tr></thead>
-      <tbody>{% for m in overdue %}
-      <tr><td class="td"><a class="link" href="/clients/{{ m.client.id }}">{{ m.client.name }}</a></td><td class="td">{{ m.title }}</td><td class="td tc whitespace-nowrap text-health-red">{{ m.due_date|date }}</td><td class="td whitespace-nowrap">{{ m.owner.name if m.owner else '—' }}</td></tr>
-      {% else %}<tr><td colspan="4" class="td text-ink-3">None overdue.</td></tr>{% endfor %}</tbody>
-    </table></div>
-
-    {{ section_title("Time in stage (completed visits)") }}
-    <div class="card overflow-x-auto"><table class="sortable w-full text-sm">
-      <thead><tr><th class="th">Stage</th><th class="th num">Visits</th><th class="th num">Avg days</th><th class="th num">Max days</th></tr></thead>
-      <tbody>{% for s in stage_averages %}
-      <tr><td class="td">{{ s.stage }}</td><td class="td num">{{ s.completed_visits }}</td><td class="td num">{{ s.avg_days }}</td><td class="td num">{{ s.max_days }}</td></tr>
-      {% endfor %}</tbody>
-    </table></div>
+  <div class="card list">
+    <div class="sec-h"><h3>Oldest open blockers</h3><a href="/blockers">All blockers</a></div>
+    {% for b in oldest_blockers %}
+    <div class="li" data-peek hx-get="/clients/{{ b.client.id }}/peek" hx-target="#drawer" hx-swap="innerHTML">
+      <div class="grow"><a class="t" href="/clients/{{ b.client.id }}">{{ b.client.name }}</a><div class="s">{{ b.title }}{% if b.external_ref %} · <span class="ref">{{ b.external_ref }}</span>{% endif %}</div></div>
+      {{ severity(b.severity) }}<div class="r" style="width:30px">{{ b.age_days(now) }}d</div>
+    </div>
+    {% else %}<div class="empty">No open blockers. Nice.</div>{% endfor %}
   </div>
 </div>
-
-<script>
-  const data = {{ chart_data|tojson }};
-  const ink = '#5a5148', grid = '#ede5d7', brand = '#2b4a6f';
-  const status = { red: '#a3271c', amber: '#a15b08', green: '#1f6b47' };
-  Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
-  Chart.defaults.color = ink;
-  const base = (extra) => ({
-    responsive: true, maintainAspectRatio: false,
-    plugins: { legend: { display: false }, tooltip: { displayColors: false } },
-    scales: { x: { grid: { display: false }, ticks: { font: { size: 11 } } },
-              y: { beginAtZero: true, grid: { color: grid }, ticks: { precision: 0, font: { size: 11 } }, border: { display: false } } },
-    ...extra,
-  });
-  new Chart(document.getElementById('chart-stages'), {
-    type: 'bar',
-    data: { labels: data.stages.labels, datasets: [{ data: data.stages.values, backgroundColor: brand, borderRadius: 4, maxBarThickness: 36 }] },
-    options: base({}),
-  });
-  new Chart(document.getElementById('chart-health'), {
-    type: 'bar',
-    data: { labels: ['Red', 'Amber', 'Green'], datasets: [{ data: [data.health.red, data.health.amber, data.health.green],
-            backgroundColor: [status.red, status.amber, status.green], borderRadius: 4, maxBarThickness: 36 }] },
-    options: base({ indexAxis: 'y', scales: { x: { beginAtZero: true, grid: { color: grid }, ticks: { precision: 0 }, border: { display: false } }, y: { grid: { display: false } } } }),
-  });
-  new Chart(document.getElementById('chart-duration'), {
-    type: 'bar',
-    data: { labels: data.duration.labels, datasets: [
-      { label: 'Average days', data: data.duration.avg, backgroundColor: brand, borderRadius: 4, maxBarThickness: 36, order: 2 },
-      { label: 'Amber threshold', data: data.duration.threshold, type: 'line', borderColor: '#a15b08', borderDash: [4, 3], borderWidth: 2, pointRadius: 3, pointBackgroundColor: '#a15b08', fill: false, order: 1 },
-    ] },
-    options: base({ plugins: { legend: { display: true, position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } }, tooltip: { displayColors: false } } }),
-  });
-</script>
 {% endblock %}

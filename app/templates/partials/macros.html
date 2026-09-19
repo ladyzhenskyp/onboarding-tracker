@@ -1,19 +1,34 @@
 {% macro health_badge(colour) -%}
-<span class="badge badge-{{ colour }}">{{ colour|capitalize }}</span>
+<span class="badge badge-{{ colour }}">{{ colour }}</span>
 {%- endmacro %}
 
 {% macro severity(sev) -%}
 <span class="chip chip-{{ sev }}">{{ sev }}</span>
 {%- endmacro %}
 
-{% macro reasons(hits) -%}
-{% if hits %}<ul class="mt-1 list-disc space-y-0.5 pl-4 text-xs text-ink-2">{% for h in hits %}<li>{{ h.message }}</li>{% endfor %}</ul>{% endif %}
+{% macro stage_pill(name) -%}
+<span class="chip chip-stage" title="{{ name }}">{{ name.split(' / ')[0] }}</span>
 {%- endmacro %}
 
-{% macro stage_pill(name) -%}
-<span class="inline-block whitespace-nowrap rounded bg-sand px-2 py-0.5 text-xs font-medium text-ink-2" title="{{ name }}">{{ name.split(' / ')[0] }}</span>
+{# Square initials tile for a person: "Sofia Lindqvist" -> SL #}
+{% macro avatar(name, small=True) -%}
+<span class="av {{ 'av-sm' if small }}" title="{{ name }}">{% for w in name.split()[:2] %}{{ w[0] }}{% endfor %}</span>
+{%- endmacro %}
+
+{% macro reasons(hits) -%}
+{% if hits %}<ul class="space-y-0.5 text-[13px] text-ink-2">{% for h in hits %}<li>{{ h.message }}</li>{% endfor %}</ul>{% endif %}
+{%- endmacro %}
+
+{# days-in-stage: "26 of 21 days" + bar toward the stage limit; green -> amber (>=80%) -> red (>100%).
+   `i` staggers the fill animation by row. #}
+{% macro days_bar(days, limit, i=0) -%}
+{% if limit %}{% set pct = (100 * days / limit)|round|int %}{% set tone = 'red' if pct > 100 else ('amber' if pct >= 80 else 'green') %}
+<span class="days"><span>{{ days }} of {{ limit }} days</span><span class="dbar dbar-{{ tone }}"><i style="--w:{{ [pct, 100]|min }}%;--i:{{ i }}"></i></span></span>
+{%- else -%}
+<span class="days"><span>{{ days }} days</span></span>
+{%- endif %}
 {%- endmacro %}
 
 {% macro section_title(text, count=None) -%}
-<h2 class="mb-2 mt-6 flex items-baseline gap-2 font-display text-lg font-semibold">{{ text }}{% if count is not none %}<span class="text-sm font-normal text-ink-3">({{ count }})</span>{% endif %}</h2>
+<div class="sec-h"><h2>{{ text }}</h2>{% if count is not none %}<span class="n">{{ count }}</span>{% endif %}</div>
 {%- endmacro %}

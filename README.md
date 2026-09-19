@@ -99,11 +99,13 @@ uvicorn app.main:app --reload
 
 | Page | URL |
 |------|-----|
-| Dashboard — counts, at-risk list with reasons, upcoming go-lives, overdue milestones, oldest blockers | `/` |
+| Dashboard — triage: health tiles, at-risk list with reasons and days-in-stage bars, this week's go-lives and oldest blockers | `/` |
+| Insights — filterable charts (by stage, health mix, days in stage vs. limit), time-in-stage, overdue milestones | `/insights` |
 | Pipeline board — one column per stage | `/pipeline` |
 | Client detail — stage timeline, milestones, blockers, notes, meetings; advance/move stage, add/resolve blockers, add milestones and notes | `/clients/{id}` |
 | Blockers — filter by status, severity, owner, client | `/blockers` |
 | Team — workload and health per owner | `/team` |
+| Search — header typeahead over client names and blocker ticket refs (HTMX) | `/search?q=` |
 | CSV export | `/export/pipeline.csv`, `/export/blockers.csv` |
 
 ## How health is computed

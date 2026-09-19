@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import severity, section_title %}
+{% block title %}Insights · Onboarding Tracker{% endblock %}
+{% block head %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js" crossorigin="anonymous"></script>
+{% endblock %}
+{% block content %}
+<div class="flex flex-wrap items-end justify-between gap-3">
+  <div><h1>Insights</h1><div class="caption mt-0.5">How the pipeline is performing.</div></div>
+  <div class="caption">{{ n_accounts }} account{{ '' if n_accounts == 1 else 's' }} · {{ completed_visits }} completed stage visit{{ '' if completed_visits == 1 else 's' }}{% if filtered %} · <a class="link" href="/insights">clear filters</a>{% endif %}</div>
+</div>
+
+{# ---- filter bar: every field is a query parameter, so the view is a URL you can share ---- #}
+<form method="get" action="/insights" class="mt-4 flex flex-wrap items-end gap-2 text-sm">
+  <label class="grid gap-1"><span class="kicker">Owner</span>
+    <select name="owner_id" class="input w-auto"><option value="">All owners</option>{% for u in users %}<option value="{{ u.id }}" {% if filters.owner_id == u.id %}selected{% endif %}>{{ u.name }}</option>{% endfor %}</select></label>
+  <label class="grid gap-1"><span class="kicker">Segment</span>
+    <select name="segment" class="input w-auto"><option value="">All segments</option>{% for s in segments %}<option value="{{ s }}" {% if filters.segment == s %}selected{% endif %}>{{ s|humanize }}</option>{% endfor %}</select></label>
+  <label class="grid gap-1"><span class="kicker">Current stage</span>
+    <select name="stage" class="input w-auto"><option value="">All stages</option>{% for s in stages %}<option value="{{ s.key }}" {% if filters.stage == s.key %}selected{% endif %}>{{ s.name }}</option>{% endfor %}</select></label>
+  <label class="grid gap-1"><span class="kicker">Kickoff from</span><input type="date" name="kickoff_from" class="input w-auto" value="{{ filters.kickoff_from or '' }}"></label>
+  <label class="grid gap-1"><span class="kicker">Kickoff to</span><input type="date" name="kickoff_to" class="input w-auto" value="{{ filters.kickoff_to or '' }}"></label>
+  <button class="btn">Apply</button>
+  {% if filtered %}<a href="/insights" class="btn-ghost">Reset</a>{% endif %}
+</form>
+
+{% if n_accounts == 0 %}
+<div class="panel mt-4 empty">No accounts match these filters. Try widening the kickoff range or clearing the owner.</div>
+{% else %}
+{# ---- charts ---- #}
+<div class="mt-4 grid gap-3 lg:grid-cols-3">
+  <div class="panel">
+    <div class="mb-1 text-[13.5px] font-semibold">Accounts by stage</div>
+    <div class="relative h-44"><canvas id="chart-stages" role="img" aria-label="Bar chart of accounts per pipeline stage"></canvas></div>
+    <p class="mt-2 text-xs text-ink-3">Where the filtered accounts sit today.</p>
+  </div>
+  <div class="panel">
+    <div class="mb-1 text-[13.5px] font-semibold">Health mix</div>
+    <div class="relative h-44"><canvas id="chart-health" role="img" aria-label="Bar chart of accounts by health colour"></canvas></div>
+    <p class="mt-2 text-xs text-ink-3">Red = act now · Amber = watch · Green = on track. Computed live from the risk rules.</p>
+  </div>
+  <div class="panel">
+    <div class="mb-1 text-[13.5px] font-semibold">Average days in stage <span class="font-normal text-ink-3">vs. limit</span></div>
+    <div class="relative h-44"><canvas id="chart-duration" role="img" aria-label="Bar chart of average days spent in each stage against its limit"></canvas></div>
+    <p class="mt-2 text-xs text-ink-3">Completed visits only. The dashed line is the stage limit from <span class="font-mono">risk_rules.yaml</span>.</p>
+  </div>
+</div>
+
+<div class="grid gap-6 lg:grid-cols-2">
+  <div>
+    {{ section_title("Time in stage") }}
+    <div class="card overflow-x-auto"><table class="sortable w-full text-sm">
+      <thead><tr><th class="th th-l">Stage</th><th class="th num">Completed visits</th><th class="th num">Avg days</th><th class="th num">Max days</th><th class="th num">Limit</th></tr></thead>
+      <tbody>{% for s in stage_averages %}
+      <tr><td class="td whitespace-nowrap">{{ s.stage.name }}</td><td class="td num">{{ s.completed_visits }}</td>
+        <td class="td num {{ 'font-semibold text-health-red' if s.limit and s.avg_days and s.avg_days > s.limit }}">{{ s.avg_days if s.avg_days is not none else '—' }}</td>
+        <td class="td num">{{ s.max_days if s.max_days is not none else '—' }}</td>
+        <td class="td num text-ink-3">{{ s.limit if s.limit else '—' }}</td></tr>
+      {% endfor %}</tbody>
+    </table></div>
+    <p class="mt-2 text-xs text-ink-3">Averages are over completed visits, so the current open stage of each account is not counted yet.</p>
+  </div>
+  <div>
+    {{ section_title("Overdue milestones", overdue|length) }}
+    <div class="card overflow-x-auto"><table class="sortable w-full text-sm">
+      <thead><tr><th class="th th-l">Client</th><th class="th th-l">Milestone</th><th class="th">Due</th><th class="th th-l">Owner</th></tr></thead>
+      <tbody>{% for m in overdue %}
+      <tr><td class="td"><a class="link" href="/clients/{{ m.client.id }}">{{ m.client.name }}</a></td><td class="td">{{ m.title }}</td><td class="td whitespace-nowrap text-health-red">{{ m.due_date|date }}</td><td class="td whitespace-nowrap">{{ m.owner.name if m.owner else '—' }}</td></tr>
+      {% else %}<tr><td colspan="4" class="empty">No overdue milestones for these accounts.</td></tr>{% endfor %}</tbody>
+    </table></div>
+
+    {{ section_title("Oldest open blockers", oldest_blockers|length) }}
+    <div class="card overflow-x-auto"><table class="sortable w-full text-sm">
+      <thead><tr><th class="th th-l">Client</th><th class="th th-l">Blocker</th><th class="th">Sev</th><th class="th num">Age</th><th class="th">Ref</th></tr></thead>
+      <tbody>{% for b in oldest_blockers %}
+      <tr><td class="td"><a class="link" href="/clients/{{ b.client.id }}">{{ b.client.name }}</a></td><td class="td">{{ b.title }}</td><td class="td">{{ severity(b.severity) }}</td><td class="td num">{{ b.age_days(now) }}d</td><td class="td whitespace-nowrap font-mono text-xs text-ink-3">{{ b.external_ref or '' }}</td></tr>
+      {% else %}<tr><td colspan="5" class="empty">No open blockers for these accounts.</td></tr>{% endfor %}</tbody>
+    </table></div>
+  </div>
+</div>
+
+<script>
+  const data = {{ chart_data|tojson }};
+  const ink = '#5a6078', grid = '#eff0f6', brand = '#8a85d6';  // Mist: soft indigo bars
+  const status = { red: '#ea9a93', amber: '#ecc47e', green: '#8fd0ae' };  // pastel fills, same as the bars elsewhere
+  Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
+  Chart.defaults.color = ink;
+  const base = (extra) => ({
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false }, tooltip: { displayColors: false } },
+    scales: { x: { grid: { display: false }, ticks: { font: { size: 11 } } },
+              y: { beginAtZero: true, grid: { color: grid }, ticks: { precision: 0, font: { size: 11 } }, border: { display: false } } },
+    ...extra,
+  });
+  new Chart(document.getElementById('chart-stages'), {
+    type: 'bar',
+    data: { labels: data.stages.labels, datasets: [{ data: data.stages.values, backgroundColor: brand, borderRadius: 0, maxBarThickness: 36 }] },
+    options: base({}),
+  });
+  new Chart(document.getElementById('chart-health'), {
+    type: 'bar',
+    data: { labels: ['Red', 'Amber', 'Green'], datasets: [{ data: [data.health.red, data.health.amber, data.health.green],
+            backgroundColor: [status.red, status.amber, status.green], borderRadius: 0, maxBarThickness: 36 }] },
+    options: base({ indexAxis: 'y', scales: { x: { beginAtZero: true, grid: { color: grid }, ticks: { precision: 0 }, border: { display: false } }, y: { grid: { display: false } } } }),
+  });
+  new Chart(document.getElementById('chart-duration'), {
+    type: 'bar',
+    data: { labels: data.duration.labels, datasets: [
+      { label: 'Average days', data: data.duration.avg, backgroundColor: brand, borderRadius: 0, maxBarThickness: 36, order: 2 },
+      { label: 'Stage limit', data: data.duration.threshold, type: 'line', borderColor: '#96703a', borderDash: [4, 3], borderWidth: 2, pointRadius: 3, pointBackgroundColor: '#96703a', fill: false, order: 1, spanGaps: false },
+    ] },
+    options: base({ plugins: { legend: { display: true, position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } }, tooltip: { displayColors: false } } }),
+  });
+</script>
+{% endif %}
+{% endblock %}

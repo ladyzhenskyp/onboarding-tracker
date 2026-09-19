@@ -31,4 +31,4 @@ def team(
     for w in q.owner_workload(db):
         extra = by_owner.get(w.owner.id, {"red": 0, "amber": 0, "green": 0, "clients": []})
         rows.append({"w": w, **extra})
-    return templates.TemplateResponse(request, "team.html", {"now": now, "rows": rows})
+    return templates.TemplateResponse(request, "team.html", {"now": now, "cfg": cfg, "rows": rows})

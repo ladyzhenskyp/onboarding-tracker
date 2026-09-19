@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{{ client.name }} · Onboarding Tracker{% endblock %}
 {% block content %}
-<nav class="mb-3 text-xs text-ink-3"><a class="hover:underline" href="/clients">Clients</a> / {{ client.name }}</nav>
+<nav class="mb-3 text-xs text-ink-3"><a class="hover:text-ink hover:underline" href="/clients">Clients</a> <span class="mx-1">/</span> {{ client.name }}</nav>
 {% include "clients/_body.html" %}
 {% endblock %}
