@@ -22,7 +22,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from faker import Faker  # noqa: E402
-from sqlalchemy import delete, select  # noqa: E402
+from sqlalchemy import delete, select, text  # noqa: E402
 from sqlalchemy.orm import Session  # noqa: E402
 
 from app.database import SessionLocal  # noqa: E402
@@ -239,12 +239,20 @@ BLOCKER_DESCRIPTIONS = [
 
 
 def wipe(db: Session) -> None:
-    """Delete demo data but keep the fixed stages lookup rows."""
-    for table in (meeting_attendees,):
-        db.execute(delete(table))
-    for model in (Meeting, Note, Blocker, Milestone, ClientStageHistory, Client, User):
+    """Delete demo data but keep the fixed stages lookup rows.
+
+    Deliberately does NOT commit: wiping and re-seeding happen in one transaction,
+    so a visitor loading a page mid-reset sees either the old data or the new data,
+    never an empty app. Row ids restart at 1 so links like /clients/1 survive a reset.
+    """
+    models = (Meeting, Note, Blocker, Milestone, ClientStageHistory, Client, User)
+    if db.get_bind().dialect.name == "postgresql":
+        names = ", ".join([meeting_attendees.name] + [m.__tablename__ for m in models])
+        db.execute(text(f"TRUNCATE {names} RESTART IDENTITY CASCADE"))
+        return
+    db.execute(delete(meeting_attendees))
+    for model in models:  # SQLite reuses ids from 1 once a table is empty
         db.execute(delete(model))
-    db.commit()
 
 
 def seed_users(db: Session) -> list[User]:
@@ -362,6 +370,10 @@ def seed_notes_and_meetings(client: Client, now: datetime, team: list[User]) -> 
 
 def run(if_empty: bool = False) -> None:
     now = utcnow()
+    # Re-seed the random generators on every run (not just at import), so the nightly
+    # in-process reset produces exactly the same demo as a fresh deploy.
+    Faker.seed(42)
+    random.seed(42)
     with SessionLocal() as db:
         stages = {s.key: s for s in db.scalars(select(Stage)).all()}
         if set(stages) != set(STAGE_ORDER):

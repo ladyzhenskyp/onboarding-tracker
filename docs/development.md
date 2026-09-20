@@ -142,3 +142,15 @@ psql "$DATABASE_URL" -v today="'$(date +%F)'" -v now="'$(date '+%F %H:%M')'" \
 | Pages render unstyled | Tailwind/HTMX/fonts load from CDNs; check internet access. |
 | A test fails with `database is locked` | Another process has `tracker.db` open; tests use their own file, but stop the dev server if in doubt. |
 | `if>` prompt in the terminal after pasting commands | zsh treated a `#` comment as a command. Press Ctrl‑C and paste commands without comments. |
+
+## Demo reset
+
+The live site is a shared demo, so it puts its own data back every hour, on the hour: a background task
+(`app/services/demo_reset.py`) wipes and re-seeds, and the container also resets on every start.
+Set `DEMO_RESET_SCHEDULE=nightly` to reset once a day instead, at `DEMO_RESET_HOUR_UTC` (default 8,
+which is 4am in New York). Wipe and seed run in one transaction and
+row ids restart at 1, so visitors never see an empty app and links like `/clients/1` keep working.
+
+It is off by default (`DEMO_RESET_NIGHTLY=false`), so running locally never wipes your data;
+`scripts/start.sh` switches it on inside the container. To keep data on a deployment, set
+`DEMO_RESET_NIGHTLY=false` in the service's variables.

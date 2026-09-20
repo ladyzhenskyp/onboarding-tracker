@@ -8,7 +8,7 @@ account moves through a fixed onboarding pipeline
 glance which accounts are at risk — and *why*.
 
 > **Live demo:** https://onboarding-tracker-production-0880.up.railway.app — sign in
-> with the pre-filled demo account. Data is fictional and reseeds on deploy.
+> with the pre-filled demo account. Data is fictional and resets itself every hour (and on each deploy).
 >
 > Status: deployed on Railway (Docker + Postgres), CI on every push.
 

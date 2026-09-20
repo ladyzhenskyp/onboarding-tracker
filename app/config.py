@@ -23,6 +23,9 @@ class Settings:
     demo_username: str
     demo_password: str
     risk_rules_path: Path
+    demo_reset_nightly: bool
+    demo_reset_hour_utc: int
+    demo_reset_schedule: str
 
 
 def _env(name: str, default: str) -> str:
@@ -44,6 +47,14 @@ def get_settings() -> Settings:
         demo_username=_env("DEMO_USERNAME", "demo"),
         demo_password=_env("DEMO_PASSWORD", "demo1234"),
         risk_rules_path=Path(_env("RISK_RULES_PATH", str(ROOT_DIR / "app" / "risk_rules.yaml"))),
+        # Nightly wipe-and-reseed of the shared demo (app/services/demo_reset.py). Off unless
+        # asked for; scripts/start.sh turns it on in the container. 8 UTC = 4am New York (EDT).
+        demo_reset_nightly=_env("DEMO_RESET_NIGHTLY", "false").lower() == "true",
+        demo_reset_hour_utc=int(_env("DEMO_RESET_HOUR_UTC", "8")) % 24,
+        # "hourly" resets on the hour; "nightly" resets once a day at DEMO_RESET_HOUR_UTC.
+        demo_reset_schedule=(
+            "nightly" if _env("DEMO_RESET_SCHEDULE", "hourly").lower() == "nightly" else "hourly"
+        ),
     )
 
 
