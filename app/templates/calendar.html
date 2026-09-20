@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import avatar, section_title %}
+{% block title %}Calendar · Onboarding Tracker{% endblock %}
+{% block content %}
+<div class="ph">
+  <div><h1>Calendar</h1><p>Client meetings across the whole team. {{ in_month }} in {{ first.strftime('%B') }}.</p></div>
+  <form method="get" action="/calendar" data-autosubmit class="flex items-center gap-2">
+    <input type="hidden" name="month" value="{{ first.strftime('%Y-%m') }}">
+    <select name="person_id" class="input w-auto"><option value="">Everyone</option>{% for u in users %}<option value="{{ u.id }}" {{ 'selected' if u.id == person_id }}>{{ u.name }}</option>{% endfor %}</select>
+  </form>
+</div>
+
+{% set keep = ('&person_id=%d' % person_id) if person_id else '' %}
+<div class="cal-bar">
+  <a class="btn-quiet btn-sm" href="/calendar?month={{ prev }}{{ keep }}" aria-label="Previous month">←</a>
+  <a class="btn-quiet btn-sm" href="/calendar?month={{ next }}{{ keep }}" aria-label="Next month">→</a>
+  <h2>{{ first.strftime('%B %Y') }}</h2>
+  {% if first.strftime('%Y-%m') != this_month %}<a class="btn-ghost btn-sm" href="/calendar?month={{ this_month }}{{ keep }}">Today</a>{% endif %}
+</div>
+
+<div class="card scroll">
+<div class="cal">
+  {% for d in ('Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun') %}<div class="cal-h">{{ d }}</div>{% endfor %}
+  {% for week in weeks %}{% for day in week %}
+  <div class="cal-d {{ 'cal-out' if day.month != first.month }} {{ 'cal-today' if day == today }} {{ 'cal-we' if day.weekday() >= 5 }}">
+    <div class="cal-n">{{ day.day }}</div>
+    {% set evs = by_day.get(day, []) %}
+    {% for m in evs[:3] %}
+    <div class="ev rise {{ 'ev-past' if m.held_at < now }}" style="--i:{{ loop.index0 }}" data-peek hx-get="/clients/{{ m.client.id }}/peek" hx-target="#drawer" hx-swap="innerHTML"
+         title="{{ m.held_at.strftime('%-I:%M %p') }} · {{ m.client.name }}&#10;{{ m.summary }}&#10;{{ m.attendees|map(attribute='name')|join(', ') }}">
+      <div class="ev-t"><span>{{ m.held_at.strftime('%-I:%M %p')|lower }}</span><span class="ev-av">{% for u in m.attendees[:3] %}{{ avatar(u.name) }}{% endfor %}</span></div>
+      <a class="ev-c" href="/clients/{{ m.client.id }}">{{ m.client.name }}</a>
+    </div>
+    {% endfor %}
+    {# busy days: keep the grid even, tuck the rest behind "+N more" #}
+    {% if evs|length > 3 %}<details class="ev-more"><summary>+{{ evs|length - 3 }} more</summary>
+    {% for m in evs[3:] %}
+    <div class="ev rise {{ 'ev-past' if m.held_at < now }}" style="--i:{{ loop.index0 }}" data-peek hx-get="/clients/{{ m.client.id }}/peek" hx-target="#drawer" hx-swap="innerHTML"
+         title="{{ m.held_at.strftime('%-I:%M %p') }} · {{ m.client.name }}&#10;{{ m.summary }}&#10;{{ m.attendees|map(attribute='name')|join(', ') }}">
+      <div class="ev-t"><span>{{ m.held_at.strftime('%-I:%M %p')|lower }}</span><span class="ev-av">{% for u in m.attendees[:3] %}{{ avatar(u.name) }}{% endfor %}</span></div>
+      <a class="ev-c" href="/clients/{{ m.client.id }}">{{ m.client.name }}</a>
+    </div>
+    {% endfor %}</details>{% endif %}
+  </div>
+  {% endfor %}{% endfor %}
+</div>
+</div>
+
+{{ section_title("Next 7 days", agenda|length) }}
+<div class="card list">
+  {% for m in agenda %}
+  <div class="li" data-peek hx-get="/clients/{{ m.client.id }}/peek" hx-target="#drawer" hx-swap="innerHTML">
+    <div class="r" style="width:118px;text-align:left"><div class="gl">{{ m.held_at.strftime('%a, %b %-d') }}</div><div class="sub">{{ m.held_at.strftime('%-I:%M %p') }}</div></div>
+    <div class="grow"><a class="t" href="/clients/{{ m.client.id }}">{{ m.client.name }}</a><div class="s">{{ m.summary }}</div></div>
+    <span class="ev-av">{% for u in m.attendees %}{{ avatar(u.name) }}{% endfor %}</span>
+  </div>
+  {% else %}<div class="empty">Nothing scheduled in the next week{% if person_id %} for this person{% endif %}. Add a meeting from a client's page.</div>{% endfor %}
+</div>
+{% endblock %}

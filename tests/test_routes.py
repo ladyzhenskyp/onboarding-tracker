@@ -353,3 +353,109 @@ def test_cannot_touch_another_clients_rows(client):
     other = _ids(Note, 4)[0]
     assert client.post(f"/clients/3/notes/{other}/delete").status_code == 404
     assert other in _ids(Note, 4)
+
+
+# ---- milestones order, meetings, add client, calendar -----------------------------------
+def test_overdue_milestones_are_listed_first(client):
+    client.post("/clients/3/milestones", data={"title": "AAA far future", "due_date": "2035-01-01"})
+    client.post(
+        "/clients/3/milestones", data={"title": "ZZZ long overdue", "due_date": "2020-01-01"}
+    )
+    body = client.get("/clients/3").text
+    rows = body.split("Milestones")[1]
+    assert rows.index("ZZZ long overdue") < rows.index("AAA far future")
+    first_row = rows.split("<tr", 2)[2]  # [0] before thead row, [1] header, [2] first data row
+    assert "ZZZ long overdue" in first_row and "Overdue" in first_row
+
+
+def test_add_edit_delete_meeting_and_calendar(client):
+    from app.models import Meeting
+
+    r = client.post(
+        "/clients/3/meetings",
+        data={
+            "summary": "Kickoff prep call",
+            "held_on": "2031-05-14",
+            "held_time": "14:30",
+            "attendee_ids": ["1", "2"],
+            "action_items": "",
+        },
+        headers=HX,
+    )
+    assert r.status_code == 200 and "Kickoff prep call" in r.text and "upcoming" in r.text
+    with SessionLocal() as db:
+        m = db.scalar(select(Meeting).where(Meeting.summary == "Kickoff prep call"))
+        mid = m.id
+        assert m.held_at.hour == 14 and sorted(u.id for u in m.attendees) == [1, 2]
+
+    cal = client.get("/calendar?month=2031-05")
+    assert cal.status_code == 200 and "May 2031" in cal.text and "2:30 pm" in cal.text
+    assert "2:30 pm" not in client.get("/calendar?month=2031-05&person_id=5").text  # not attending
+    assert "2:30 pm" in client.get("/calendar?month=2031-05&person_id=2").text
+    assert client.get("/calendar?month=nonsense&person_id=").status_code == 200  # falls back
+
+    r = client.post(
+        f"/clients/3/meetings/{mid}/edit",
+        data={
+            "summary": "Kickoff prep (moved)",
+            "held_on": "2031-05-15",
+            "held_time": "09:00",
+            "attendee_ids": ["3"],
+        },
+        headers=HX,
+    )
+    assert r.status_code == 200 and "Kickoff prep (moved)" in r.text
+    assert client.post(f"/clients/3/meetings/{mid}/delete", headers=HX).status_code == 200
+    assert mid not in _ids(Meeting, 3)
+
+
+def test_seed_has_upcoming_meetings_for_the_calendar(client):
+    r = client.get("/calendar")
+    assert r.status_code == 200 and 'class="ev ' in r.text
+
+
+def test_add_client_creates_history_and_validates(client):
+    from app.models import Client, ClientStageHistory
+
+    good = {
+        "name": "  Northwind   Asset Mgmt ",
+        "segment": "enterprise",
+        "contract_value": "$120,000",
+        "owner_id": "2",
+        "kickoff_date": "2026-09-01",
+        "target_go_live_date": "2026-12-01",
+        "stage_key": "kickoff",
+    }
+    r = client.post("/clients", data=good, follow_redirects=False)
+    assert r.status_code == 303
+    with SessionLocal() as db:
+        c = db.scalar(select(Client).where(Client.name == "Northwind Asset Mgmt"))
+        assert c and c.contract_value == 120000 and c.current_stage.key == "kickoff"
+        rows = list(
+            db.scalars(select(ClientStageHistory).where(ClientStageHistory.client_id == c.id))
+        )
+        assert len(rows) == 1 and rows[0].exited_at is None  # one open history row
+        cid = c.id
+    page = client.get(f"/clients/{cid}")
+    assert page.status_code == 200 and "Northwind Asset Mgmt" in page.text
+    assert "Northwind Asset Mgmt" in client.get("/pipeline").text
+
+    # problems come back as a message on the form, which stays filled in
+    for change, message in [
+        ({}, "already a client"),
+        ({"name": "Other Co", "target_go_live_date": "2026-01-01"}, "before the kickoff"),
+        ({"name": "Other Co", "contract_value": "lots"}, "should be a number"),
+        ({"name": "Other Co", "owner_id": ""}, "Choose an owner"),
+        ({"name": "Other Co", "segment": ""}, "Choose a segment"),
+        ({"name": "Other Co", "kickoff_date": ""}, "kickoff date"),
+    ]:
+        r = client.post("/clients", data={**good, **change}, follow_redirects=False)
+        assert r.status_code == 400 and message in r.text, message
+    assert 'value="Other Co"' in r.text
+
+
+def test_insights_blockers_table_sits_under_time_in_stage(client):
+    t = client.get("/insights").text
+    assert (
+        t.index("Time in stage") < t.index("Oldest open blockers") < t.index("Overdue milestones")
+    )

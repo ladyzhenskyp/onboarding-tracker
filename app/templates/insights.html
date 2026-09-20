@@ -59,6 +59,14 @@
       {% endfor %}</tbody>
     </table></div>
     <p class="mt-2 text-xs text-ink-3">Averages are over completed visits, so the current open stage of each account is not counted yet.</p>
+
+    {{ section_title("Oldest open blockers", oldest_blockers|length) }}
+    <div class="card overflow-x-auto"><table class="sortable w-full text-sm">
+      <thead><tr><th class="th th-l">Client</th><th class="th th-l">Blocker</th><th class="th">Sev</th><th class="th num">Age</th><th class="th">Ref</th></tr></thead>
+      <tbody>{% for b in oldest_blockers %}
+      <tr><td class="td"><a class="link" href="/clients/{{ b.client.id }}">{{ b.client.name }}</a></td><td class="td">{{ b.title }}</td><td class="td">{{ severity(b.severity) }}</td><td class="td num">{{ b.age_days(now) }}d</td><td class="td whitespace-nowrap font-mono text-xs text-ink-3">{{ b.external_ref or '' }}</td></tr>
+      {% else %}<tr><td colspan="5" class="empty">No open blockers for these accounts.</td></tr>{% endfor %}</tbody>
+    </table></div>
   </div>
   <div>
     {{ section_title("Overdue milestones", overdue|length) }}
@@ -67,14 +75,6 @@
       <tbody>{% for m in overdue %}
       <tr><td class="td"><a class="link" href="/clients/{{ m.client.id }}">{{ m.client.name }}</a></td><td class="td">{{ m.title }}</td><td class="td whitespace-nowrap text-health-red">{{ m.due_date|date }}</td><td class="td whitespace-nowrap">{{ m.owner.name if m.owner else '—' }}</td></tr>
       {% else %}<tr><td colspan="4" class="empty">No overdue milestones for these accounts.</td></tr>{% endfor %}</tbody>
-    </table></div>
-
-    {{ section_title("Oldest open blockers", oldest_blockers|length) }}
-    <div class="card overflow-x-auto"><table class="sortable w-full text-sm">
-      <thead><tr><th class="th th-l">Client</th><th class="th th-l">Blocker</th><th class="th">Sev</th><th class="th num">Age</th><th class="th">Ref</th></tr></thead>
-      <tbody>{% for b in oldest_blockers %}
-      <tr><td class="td"><a class="link" href="/clients/{{ b.client.id }}">{{ b.client.name }}</a></td><td class="td">{{ b.title }}</td><td class="td">{{ severity(b.severity) }}</td><td class="td num">{{ b.age_days(now) }}d</td><td class="td whitespace-nowrap font-mono text-xs text-ink-3">{{ b.external_ref or '' }}</td></tr>
-      {% else %}<tr><td colspan="5" class="empty">No open blockers for these accounts.</td></tr>{% endfor %}</tbody>
     </table></div>
   </div>
 </div>

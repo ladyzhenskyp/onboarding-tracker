@@ -2,7 +2,7 @@
    posts with HTMX and swaps this whole block, so the health badge, timeline, tables
    and activity log all stay in sync without a page reload. Without JavaScript the
    same forms still work: the server answers with a redirect instead. #}
-{% from "partials/macros.html" import health_badge, severity, reasons, days_bar, section_title, row_actions, person_select %}
+{% from "partials/macros.html" import health_badge, severity, reasons, days_bar, section_title, row_actions, person_select, attendee_picker, avatar %}
 {% set hx = 'hx-target="#client-body" hx-swap="outerHTML"' %}
 {% macro blocker_edit_row(b) %}
       <tr class="edit-row" id="edit-b-{{ b.id }}" hidden><td colspan="6" class="td">
@@ -75,7 +75,8 @@
     <div class="card overflow-x-auto"><table class="sortable w-full text-sm">
       <thead><tr><th class="th th-l">Title</th><th class="th">Due</th><th class="th">Status</th><th class="th th-l">Owner</th><th class="th th-l"></th></tr></thead>
       <tbody>
-      {% for m in client.milestones %}
+      {# overdue first, then open by due date, then done (sorted in the router) #}
+      {% for m in milestones %}
       <tr class="{{ 'text-ink-3' if m.status == 'done' }}">
         <td class="td">{{ m.title }}</td>
         <td class="td whitespace-nowrap">{{ m.due_date|date }}</td>
@@ -164,13 +165,40 @@
   {% else %}<li class="empty">No notes yet — the stage log and your updates will appear here.</li>{% endfor %}
 </ol>
 
-{% if client.meetings %}
+{# ---- meetings: upcoming first, then past ---- #}
+<div id="meetings">
 {{ section_title("Meetings", client.meetings|length) }}
-<div class="card overflow-x-auto"><table class="sortable w-full text-sm">
-  <thead><tr><th class="th">Date</th><th class="th th-l">Summary</th><th class="th th-l">Attendees</th><th class="th th-l">Action items</th></tr></thead>
+<div class="card overflow-x-auto"><table class="w-full text-sm">
+  <thead><tr><th class="th">When</th><th class="th th-l">Summary</th><th class="th th-l">Attendees</th><th class="th th-l">Action items</th><th class="th"></th></tr></thead>
   <tbody>{% for m in client.meetings %}
-  <tr><td class="td whitespace-nowrap">{{ m.held_at|date }}</td><td class="td">{{ m.summary }}</td><td class="td text-xs text-ink-2">{{ m.attendees|map(attribute='name')|join(', ') }}</td><td class="td whitespace-pre-line text-xs text-ink-2">{{ m.action_items }}</td></tr>
-  {% endfor %}</tbody>
+  <tr>
+    <td class="td whitespace-nowrap">{{ m.held_at|date }}<div class="text-xs text-ink-3">{{ m.held_at.strftime('%-I:%M %p') }}{% if m.held_at > now %} · <span class="text-brand">upcoming</span>{% endif %}</div></td>
+    <td class="td">{{ m.summary }}</td>
+    <td class="td text-xs text-ink-2">{{ m.attendees|map(attribute='name')|join(', ') or '—' }}</td>
+    <td class="td whitespace-pre-line text-xs text-ink-2">{{ m.action_items or '' }}</td>
+    <td class="td whitespace-nowrap text-right">{{ row_actions('edit-mt-%d' % m.id, '/clients/%d/meetings/%d/delete' % (client.id, m.id), hx, 'meeting') }}</td>
+  </tr>
+  <tr class="edit-row" id="edit-mt-{{ m.id }}" hidden><td colspan="5" class="td">
+    <form hx-post="/clients/{{ client.id }}/meetings/{{ m.id }}/edit" {{ hx|safe }} method="post" action="/clients/{{ client.id }}/meetings/{{ m.id }}/edit" class="grid gap-2 sm:grid-cols-4">
+      <input name="summary" class="input sm:col-span-2" value="{{ m.summary or '' }}" placeholder="What is the meeting about?" required>
+      <input name="held_on" type="date" class="input" value="{{ m.held_at.date().isoformat() }}" required>
+      <input name="held_time" type="time" class="input" value="{{ m.held_at.strftime('%H:%M') }}" required>
+      <div class="sm:col-span-4">{{ attendee_picker(users, m.attendees|map(attribute='id')|list) }}</div>
+      <textarea name="action_items" rows="2" class="input sm:col-span-4" placeholder="Action items (optional)">{{ m.action_items or '' }}</textarea>
+      <div class="flex gap-2 sm:col-span-4"><button class="btn btn-sm">Save changes</button><button type="button" class="btn-ghost btn-sm" data-edit-cancel>Cancel</button></div>
+    </form>
+  </td></tr>
+  {% else %}<tr><td colspan="5" class="empty">No meetings yet. Schedule the first one below.</td></tr>{% endfor %}</tbody>
 </table></div>
-{% endif %}
+<details class="mt-2 text-sm"><summary class="cursor-pointer text-ink-2 hover:text-ink">Add meeting</summary>
+  <form hx-post="/clients/{{ client.id }}/meetings" {{ hx|safe }} method="post" action="/clients/{{ client.id }}/meetings" class="panel mt-2 grid gap-2 p-3 sm:grid-cols-4">
+    <input name="summary" class="input sm:col-span-2" placeholder="What is the meeting about?" required>
+    <input name="held_on" type="date" class="input" value="{{ today.isoformat() }}" required>
+    <input name="held_time" type="time" class="input" value="10:00" required>
+    <div class="sm:col-span-4"><div class="kicker mb-1">Attendees</div>{{ attendee_picker(users, [client.owner_id]) }}</div>
+    <textarea name="action_items" rows="2" class="input sm:col-span-4" placeholder="Action items (optional)"></textarea>
+    <button class="btn justify-center sm:col-span-4">Add meeting</button>
+  </form>
+</details>
+</div>
 </div>

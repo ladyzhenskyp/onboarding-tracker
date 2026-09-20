@@ -46,3 +46,9 @@
 {% macro person_select(name, users, selected_id, placeholder) -%}
 <select name="{{ name }}" class="input"><option value="">{{ placeholder }}</option>{% for u in users %}<option value="{{ u.id }}" {% if u.id == selected_id %}selected{% endif %}>{{ u.name }}</option>{% endfor %}</select>
 {%- endmacro %}
+
+
+{# Attendees as tick-box chips (a meeting can have several people, so not a dropdown). #}
+{% macro attendee_picker(users, selected_ids=[]) -%}
+<div class="picks">{% for u in users %}<label class="pick"><input type="checkbox" name="attendee_ids" value="{{ u.id }}" {% if u.id in selected_ids %}checked{% endif %}><span>{{ u.name }}</span></label>{% endfor %}</div>
+{%- endmacro %}

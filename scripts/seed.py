@@ -342,7 +342,22 @@ def client_seq(client: Client) -> int:
     return _seq.setdefault(client.name, len(_seq) + 1)
 
 
+def _business_slot(day, rng: random.Random) -> datetime:
+    """A weekday, on the hour, inside working hours."""
+    if day.weekday() >= 5:  # weekend -> the Friday before
+        day -= timedelta(days=day.weekday() - 4)
+    return datetime.combine(day, datetime.min.time()).replace(hour=rng.choice(MEETING_HOURS))
+
+
+MEETING_HOURS = [9, 10, 11, 13, 14, 15, 16]
+
+
 def seed_notes_and_meetings(client: Client, now: datetime, team: list[User]) -> None:
+    # Meeting slots come from a per-client random stream: every client shares the same
+    # fortnightly rhythm, so without a per-client offset the calendar piles them all onto
+    # the same few days. (A separate stream, so the shared one is not disturbed.)
+    slots = random.Random(client.name + "/past")
+    offset = slots.randint(0, 9)
     for k in range(random.randint(2, 4)):
         when = now - timedelta(days=14 * k + random.randint(0, 3), hours=random.randint(1, 8))
         client.notes.append(
@@ -358,13 +373,48 @@ def seed_notes_and_meetings(client: Client, now: datetime, team: list[User]) -> 
             )
         )
         meeting = Meeting(
-            held_at=when.replace(minute=0, second=0, microsecond=0),
+            held_at=_business_slot((when - timedelta(days=offset + 1)).date(), slots),
             summary=f"Biweekly implementation sync — {random.choice(TOPICS)} reviewed.",
             action_items=(
                 f"- Client: {random.choice(NEXT_STEPS)}\n- Us: {random.choice(NEXT_STEPS)}"
             ),
         )
         meeting.attendees = random.sample(team, k=random.randint(2, 3))
+        client.meetings.append(meeting)
+    seed_upcoming_meetings(client, now, team)
+
+
+UPCOMING = [
+    "Biweekly implementation sync",
+    "UAT walkthrough with client team",
+    "Go-live readiness review",
+    "Data mapping working session",
+    "Executive check-in",
+]
+
+
+def seed_upcoming_meetings(client: Client, now: datetime, team: list[User]) -> None:
+    """One or two meetings in the next three weeks, so the calendar looks alive.
+
+    Uses its own random stream (seeded from the client name): drawing from the shared one
+    here would shift every later random choice and quietly change the rest of the demo.
+    """
+    if client.current_stage.key == "live":
+        return
+    rng = random.Random(client.name)
+    for _ in range(rng.randint(1, 2)):
+        day = now.date() + timedelta(days=rng.randint(1, 21))
+        if day.weekday() >= 5:  # move weekend meetings to Monday
+            day += timedelta(days=7 - day.weekday())
+        meeting = Meeting(
+            held_at=datetime.combine(day, datetime.min.time()).replace(
+                hour=rng.choice([9, 10, 11, 13, 14, 15, 16])
+            ),
+            summary=rng.choice(UPCOMING),
+        )
+        meeting.attendees = [client.owner] + rng.sample(
+            [u for u in team if u is not client.owner], k=rng.randint(1, 2)
+        )
         client.meetings.append(meeting)
 
 

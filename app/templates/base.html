@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://api.fontshare.com">
   <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=switzer@400,500,600,700&display=swap">
   {# The design system (tokens, shell, components, motion) lives in one stylesheet. #}
-  <link rel="stylesheet" href="/static/app.css?v=11">
+  <link rel="stylesheet" href="/static/app.css?v=13">
   {# Tailwind Play CDN supplies layout utilities (flex, grid, spacing) without a build step,
      which is right for a portfolio demo; a production app would precompile with the CLI. #}
   <script src="https://cdn.tailwindcss.com"></script>
@@ -41,6 +41,7 @@
   ('/pipeline', 'Pipeline', 'M4 4v16M10 4v10M16 4v13M22 4v7'),
   ('/clients', 'Clients', 'M16 19v-1a4 4 0 00-4-4H7a4 4 0 00-4 4v1M9.5 10a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM21 19v-1a4 4 0 00-3-3.8M16 3.2a3.5 3.5 0 010 6.6'),
   ('/blockers', 'Blockers', 'M12 8v5M12 16.5v.5M10.3 3.6L2.5 17a2 2 0 001.7 3h15.6a2 2 0 001.7-3L13.7 3.6a2 2 0 00-3.4 0z'),
+  ('/calendar', 'Calendar', 'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4'),
   ('/team', 'Team', 'M12 12a4 4 0 100-8 4 4 0 000 8zM4 21a8 8 0 0116 0'),
   ('/insights', 'Insights', 'M4 20V10M10 20V4M16 20v-7M22 20H2'),
 ] %}
@@ -102,6 +103,6 @@
   </div>
   <div class="toast" id="toast" role="status"></div>
 {% endif %}
-  <script src="/static/app.js?v=11"></script>
+  <script src="/static/app.js?v=13"></script>
 </body>
 </html>

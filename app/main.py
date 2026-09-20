@@ -13,7 +13,17 @@ from fastapi.staticfiles import StaticFiles
 
 from app.auth import AuthMiddleware
 from app.auth import router as auth_router
-from app.routers import blockers, clients, dashboard, exports, insights, pipeline, search, team
+from app.routers import (
+    blockers,
+    calendar,
+    clients,
+    dashboard,
+    exports,
+    insights,
+    pipeline,
+    search,
+    team,
+)
 from app.services import demo_reset
 
 
@@ -38,6 +48,7 @@ app.include_router(dashboard.router)
 app.include_router(pipeline.router)
 app.include_router(clients.router)
 app.include_router(blockers.router)
+app.include_router(calendar.router)
 app.include_router(team.router)
 app.include_router(insights.router)
 app.include_router(search.router)

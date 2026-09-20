@@ -225,6 +225,13 @@
       }
       return;
     }
+    const tog = e.target.closest('[data-toggle]');
+    if (tog) {  // e.g. the "Add client" button shows or hides its form
+      const box = document.getElementById(tog.dataset.toggle); if (!box) return;
+      box.hidden = !box.hidden;
+      if (!box.hidden) { const f = box.querySelector('input, textarea'); if (f) f.focus({ preventScroll: true }); }
+      return;
+    }
     const cancel = e.target.closest('[data-edit-cancel]');
     if (cancel) {
       const box = cancel.closest('.edit-row'); box.hidden = true;

@@ -2,11 +2,21 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, time
+from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
-from app.models import Blocker, Client, Milestone, Note, User
+from app.models import (
+    Blocker,
+    Client,
+    ClientStageHistory,
+    Meeting,
+    Milestone,
+    Note,
+    Stage,
+    User,
+)
 
 
 def add_blocker(
@@ -146,3 +156,99 @@ def update_note(db: Session, note: Note, *, body: str, author: User | None = Non
 def delete_note(db: Session, note: Note) -> None:
     db.delete(note)
     db.commit()
+
+
+# ---- meetings ---------------------------------------------------------------------
+def add_meeting(
+    db: Session,
+    client: Client,
+    *,
+    held_at: datetime,
+    summary: str,
+    attendees: list[User],
+    action_items: str | None = None,
+) -> Meeting:
+    m = Meeting(
+        client=client,
+        held_at=held_at,
+        summary=summary.strip(),
+        action_items=(action_items or "").strip() or None,
+    )
+    m.attendees = attendees
+    db.add(m)
+    db.commit()
+    return m
+
+
+def update_meeting(
+    db: Session,
+    meeting: Meeting,
+    *,
+    held_at: datetime,
+    summary: str,
+    attendees: list[User],
+    action_items: str | None = None,
+) -> Meeting:
+    meeting.held_at = held_at
+    meeting.summary = summary.strip()
+    meeting.action_items = (action_items or "").strip() or None
+    meeting.attendees = attendees
+    db.commit()
+    return meeting
+
+
+def delete_meeting(db: Session, meeting: Meeting) -> None:
+    db.delete(meeting)
+    db.commit()
+
+
+# ---- clients ----------------------------------------------------------------------
+class ClientError(ValueError):
+    """A new client can't be saved; the message is safe to show to the user."""
+
+
+def create_client(
+    db: Session,
+    *,
+    name: str,
+    segment: str,
+    contract_value: Decimal,
+    owner: User,
+    kickoff_date: date,
+    target_go_live_date: date,
+    stage: Stage,
+    now: datetime,
+) -> Client:
+    """Create the client AND open its first stage-history row, in one transaction, so the
+    "current stage" pointer and the history can never disagree (same rule as stage moves)."""
+    name = " ".join(name.split())
+    if not name:
+        raise ClientError("Give the client a name.")
+    if db.query(Client).filter(Client.name.ilike(name)).first():
+        raise ClientError(f"There is already a client called {name}.")
+    if contract_value < 0:
+        raise ClientError("Contract value can't be negative.")
+    if target_go_live_date < kickoff_date:
+        raise ClientError("Target go-live can't be before the kickoff date.")
+
+    # Days-in-stage counts from when the stage was entered. A client added in Kickoff entered
+    # it on the kickoff date; anything else is treated as entering its stage today.
+    entered = datetime.combine(kickoff_date, time(9, 0)) if stage.key == "kickoff" else now
+    entered = min(entered, now)
+    client = Client(
+        name=name,
+        segment=segment,
+        contract_value=contract_value,
+        owner=owner,
+        kickoff_date=kickoff_date,
+        target_go_live_date=target_go_live_date,
+        current_stage=stage,
+        created_at=now,
+    )
+    client.stage_history.append(
+        ClientStageHistory(stage=stage, entered_at=entered, changed_by=owner)
+    )
+    client.notes.append(Note(body=f"Client created in {stage.name}.", author=owner, created_at=now))
+    db.add(client)
+    db.commit()
+    return client

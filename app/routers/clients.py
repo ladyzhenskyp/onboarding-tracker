@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, time
+from decimal import Decimal, InvalidOperation
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
@@ -10,9 +11,11 @@ from sqlalchemy.orm import Session, selectinload
 from app.deps import get_db, get_now, get_risk_config, opt_int, templates
 from app.models import (
     BLOCKER_SEVERITIES,
+    CLIENT_SEGMENTS,
     MILESTONE_STATUSES,
     Blocker,
     Client,
+    Meeting,
     Milestone,
     Note,
     Stage,
@@ -42,7 +45,7 @@ def _load_client(db: Session, client_id: int) -> Client:
             selectinload(Client.milestones).selectinload(Milestone.owner),
             selectinload(Client.blockers).selectinload(Blocker.owner),
             selectinload(Client.notes),
-            selectinload(Client.meetings),
+            selectinload(Client.meetings).selectinload(Meeting.attendees),
         )
         .where(Client.id == client_id)
     )
@@ -93,6 +96,7 @@ def _detail_context(
         "users": list(db.scalars(select(User).where(User.is_active).order_by(User.name))),
         "severities": BLOCKER_SEVERITIES,
         "milestone_statuses": MILESTONE_STATUSES,
+        "milestones": _sorted_milestones(client, now.date()),
         "open_blockers": [b for b in client.blockers if b.is_open],
         "closed_blockers": [b for b in client.blockers if not b.is_open],
         "flash": flash,
@@ -122,10 +126,84 @@ def client_list(
     now: datetime = Depends(get_now),
     cfg: RiskConfig = Depends(get_risk_config),
 ):
-    rows = q.client_health(db, now, cfg)
+    return _render_list(request, db, now, cfg)
+
+
+def _render_list(
+    request: Request,
+    db: Session,
+    now: datetime,
+    cfg: RiskConfig,
+    form_error: str | None = None,
+    form: dict | None = None,
+    status_code: int = 200,
+):
+    context = {
+        "now": now,
+        "cfg": cfg,
+        "rows": q.client_health(db, now, cfg),
+        "users": list(db.scalars(select(User).where(User.is_active).order_by(User.name))),
+        "segments": CLIENT_SEGMENTS,
+        "stages": ordered_stages(db),
+        "today": now.date(),
+        "form_error": form_error,
+        "form": form or {},
+    }
     return templates.TemplateResponse(
-        request, "clients/list.html", {"now": now, "cfg": cfg, "rows": rows}
+        request, "clients/list.html", context, status_code=status_code
     )
+
+
+@router.post("", name="client_create")
+def client_create(
+    request: Request,
+    name: str = Form(""),
+    segment: str = Form(""),
+    contract_value: str = Form(""),
+    owner_id: str = Form(""),
+    kickoff_date: str = Form(""),
+    target_go_live_date: str = Form(""),
+    stage_key: str = Form("kickoff"),
+    db: Session = Depends(get_db),
+    now: datetime = Depends(get_now),
+    cfg: RiskConfig = Depends(get_risk_config),
+):
+    """Add a client. On a problem the page comes back with the form still filled in and a
+    plain-English message, rather than an error page."""
+    form = {
+        "name": name, "segment": segment, "contract_value": contract_value,
+        "owner_id": owner_id, "kickoff_date": kickoff_date,
+        "target_go_live_date": target_go_live_date, "stage_key": stage_key,
+    }  # fmt: skip
+
+    def problem(message: str):
+        return _render_list(request, db, now, cfg, message, form, status_code=400)
+
+    try:
+        value = Decimal(contract_value.replace(",", "").replace("$", "").strip())
+    except (InvalidOperation, AttributeError):
+        return problem("Contract value should be a number, for example 120000.")
+    try:
+        kickoff = date.fromisoformat(kickoff_date)
+        go_live = date.fromisoformat(target_go_live_date)
+    except ValueError:
+        return problem("Choose both a kickoff date and a target go-live date.")
+    owner = _person(db, owner_id)
+    stage = db.scalar(select(Stage).where(Stage.key == stage_key))
+    if segment not in CLIENT_SEGMENTS:
+        return problem("Choose a segment.")
+    if owner is None:
+        return problem("Choose an owner. Every account needs someone responsible for it.")
+    if stage is None:
+        return problem("Choose a stage.")
+    try:
+        client = actions.create_client(
+            db, name=name, segment=segment, contract_value=value, owner=owner,
+            kickoff_date=kickoff, target_go_live_date=go_live, stage=stage, now=now,
+        )  # fmt: skip
+    except actions.ClientError as e:
+        return problem(str(e))
+    return RedirectResponse(url=f"/clients/{client.id}", status_code=303)
 
 
 @router.get("/{client_id}", name="client_detail")
@@ -151,6 +229,17 @@ def client_peek(
     It reuses the full page's context, so the two can never disagree."""
     context = _detail_context(db, client_id, now, cfg)
     return templates.TemplateResponse(request, "clients/_peek.html", context)
+
+
+def _sorted_milestones(client: Client, today: date) -> list[Milestone]:
+    """Overdue first (oldest first), then what's still open by due date, then done."""
+
+    def rank(m: Milestone) -> tuple[int, date]:
+        if m.is_overdue(today):
+            return (0, m.due_date)
+        return (2, m.due_date) if m.status == "done" else (1, m.due_date)
+
+    return sorted(client.milestones, key=rank)
 
 
 def _timeline(client: Client, stages: list[Stage], now: datetime) -> list[dict]:
@@ -436,4 +525,77 @@ def client_delete_note(
     now: datetime = Depends(get_now),
 ):
     actions.delete_note(db, _editable_note(db, note_id, client_id))
+    return _after_action(request, db, client_id, now, cfg)
+
+
+# ---- meetings -------------------------------------------------------------------------
+def _meeting_fields(db: Session, held_on: str, held_time: str, attendee_ids: list[str]):
+    try:
+        when = datetime.combine(
+            date.fromisoformat(held_on), time.fromisoformat(held_time or "10:00")
+        )
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Choose a date and time") from None
+    ids = [i for i in (opt_int(a) for a in attendee_ids) if i]
+    people = list(db.scalars(select(User).where(User.id.in_(ids)))) if ids else []
+    return when, people
+
+
+@router.post("/{client_id}/meetings", name="client_add_meeting")
+def client_add_meeting(
+    client_id: int,
+    request: Request,
+    held_on: str = Form(...),
+    held_time: str = Form("10:00"),
+    summary: str = Form(...),
+    action_items: str = Form(""),
+    attendee_ids: list[str] = Form([]),
+    db: Session = Depends(get_db),
+    cfg: RiskConfig = Depends(get_risk_config),
+    now: datetime = Depends(get_now),
+):
+    client = _load_client(db, client_id)
+    when, people = _meeting_fields(db, held_on, held_time, attendee_ids)
+    if not summary.strip():
+        raise HTTPException(status_code=422, detail="Say what the meeting is about")
+    actions.add_meeting(
+        db, client, held_at=when, summary=summary, attendees=people, action_items=action_items
+    )
+    return _after_action(request, db, client_id, now, cfg)
+
+
+@router.post("/{client_id}/meetings/{meeting_id}/edit", name="client_edit_meeting")
+def client_edit_meeting(
+    client_id: int,
+    meeting_id: int,
+    request: Request,
+    held_on: str = Form(...),
+    held_time: str = Form("10:00"),
+    summary: str = Form(...),
+    action_items: str = Form(""),
+    attendee_ids: list[str] = Form([]),
+    db: Session = Depends(get_db),
+    cfg: RiskConfig = Depends(get_risk_config),
+    now: datetime = Depends(get_now),
+):
+    meeting = _owned(db, Meeting, meeting_id, client_id, "Meeting")
+    when, people = _meeting_fields(db, held_on, held_time, attendee_ids)
+    if not summary.strip():
+        raise HTTPException(status_code=422, detail="Say what the meeting is about")
+    actions.update_meeting(
+        db, meeting, held_at=when, summary=summary, attendees=people, action_items=action_items
+    )
+    return _after_action(request, db, client_id, now, cfg)
+
+
+@router.post("/{client_id}/meetings/{meeting_id}/delete", name="client_delete_meeting")
+def client_delete_meeting(
+    client_id: int,
+    meeting_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    cfg: RiskConfig = Depends(get_risk_config),
+    now: datetime = Depends(get_now),
+):
+    actions.delete_meeting(db, _owned(db, Meeting, meeting_id, client_id, "Meeting"))
     return _after_action(request, db, client_id, now, cfg)

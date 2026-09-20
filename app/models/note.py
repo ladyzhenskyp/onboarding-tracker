@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from app.models.user import User
 
 
-SYSTEM_NOTE_PREFIX = "Stage changed"
+SYSTEM_NOTE_PREFIXES = ("Stage changed", "Client created")
 
 
 class Note(Base):
@@ -28,9 +28,9 @@ class Note(Base):
 
     @property
     def is_system(self) -> bool:
-        """Stage moves are logged as notes by services/stages.py. They are the audit trail,
-        so the UI shows them but does not offer to edit or delete them."""
-        return self.body.startswith(SYSTEM_NOTE_PREFIX)
+        """Stage moves (services/stages.py) and client creation are logged as notes.
+        They are the audit trail, so the UI shows them but does not offer to edit or delete them."""
+        return self.body.startswith(SYSTEM_NOTE_PREFIXES)
 
     client: Mapped[Client] = relationship(back_populates="notes")
     author: Mapped[User | None] = relationship()

@@ -2,7 +2,26 @@
 {% from "partials/macros.html" import health_badge, stage_pill, days_bar %}
 {% block title %}Clients · Onboarding Tracker{% endblock %}
 {% block content %}
-<h1>Clients <span class="text-[13px] font-normal text-ink-3">{{ rows|length }}</span></h1>
+<div class="ph">
+  <div><h1>Clients <span class="text-[13px] font-normal text-ink-3">{{ rows|length }}</span></h1></div>
+  <button type="button" class="btn" data-toggle="add-client">Add client</button>
+</div>
+
+{# ---- add client: closed until the button is pressed; stays open if the server found a problem ---- #}
+<form id="add-client" method="post" action="/clients" class="panel mt-4 grid gap-x-3 gap-y-2.5 sm:grid-cols-6" {{ 'hidden' if not form_error }}>
+  {% if form_error %}<div class="form-error sm:col-span-6" role="alert">{{ form_error }}</div>{% endif %}
+  <label class="field sm:col-span-3"><span>Client name</span><input name="name" class="input" value="{{ form.name or '' }}" placeholder="e.g. Northwind Asset Management" maxlength="160" required></label>
+  <label class="field sm:col-span-3"><span>Owner</span>
+    <select name="owner_id" class="input" required><option value="" disabled {{ 'selected' if not form.owner_id }}>Choose an owner…</option>{% for u in users %}<option value="{{ u.id }}" {{ 'selected' if form.owner_id == u.id|string }}>{{ u.name }}</option>{% endfor %}</select></label>
+  <label class="field sm:col-span-2"><span>Segment</span>
+    <select name="segment" class="input" required><option value="" disabled {{ 'selected' if not form.segment }}>Choose a segment…</option>{% for s in segments %}<option value="{{ s }}" {{ 'selected' if form.segment == s }}>{{ s|humanize }}</option>{% endfor %}</select></label>
+  <label class="field sm:col-span-2"><span>Contract value (USD)</span><input name="contract_value" class="input" inputmode="decimal" value="{{ form.contract_value or '' }}" placeholder="120000" required></label>
+  <label class="field sm:col-span-2"><span>Stage</span>
+    <select name="stage_key" class="input">{% for s in stages %}<option value="{{ s.key }}" {{ 'selected' if (form.stage_key or 'kickoff') == s.key }}>{{ s.name }}</option>{% endfor %}</select></label>
+  <label class="field sm:col-span-3"><span>Kickoff date</span><input name="kickoff_date" type="date" class="input" value="{{ form.kickoff_date or today.isoformat() }}" required></label>
+  <label class="field sm:col-span-3"><span>Target go-live date</span><input name="target_go_live_date" type="date" class="input" value="{{ form.target_go_live_date or '' }}" required></label>
+  <div class="flex items-center gap-2 sm:col-span-6"><button class="btn">Create client</button><button type="button" class="btn-ghost" data-toggle="add-client">Cancel</button><span class="text-xs text-ink-3">All fields are required.</span></div>
+</form>
 <div class="card mt-4 overflow-x-auto">
 <table class="sortable w-full text-sm">
   <thead><tr><th class="th th-l">Client</th><th class="th">Segment</th><th class="th num">Contract</th><th class="th th-l">Owner</th><th class="th">Stage</th><th class="th">Days in stage</th><th class="th">Kickoff</th><th class="th">Target go-live</th><th class="th">Health</th></tr></thead>
@@ -19,7 +38,7 @@
     <td class="td whitespace-nowrap">{{ h.client.target_go_live_date|date }}</td>
     <td class="td">{{ health_badge(h.health.colour) }}</td>
   </tr>
-  {% else %}<tr><td colspan="9" class="empty">No clients yet. Seed the demo data or add one from the database.</td></tr>{% endfor %}
+  {% else %}<tr><td colspan="9" class="empty">No clients yet. Add the first one with the button above.</td></tr>{% endfor %}
   </tbody>
 </table>
 </div>
