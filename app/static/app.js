@@ -111,14 +111,17 @@
     const btn = document.createElement('button');
     btn.type = 'button'; btn.className = 'sel-btn'; btn.setAttribute('aria-haspopup', 'listbox'); btn.setAttribute('aria-expanded', 'false');
     const menu = document.createElement('ul'); menu.className = 'sel-menu'; menu.setAttribute('role', 'listbox'); menu.tabIndex = -1;
+    // built once: replacing the label while it is being clicked would detach the clicked
+    // element, and the "click outside closes" check below would then shut the list again
+    btn.innerHTML = '<span></span>' + chevron;
+    const label = btn.firstChild;
     wrap.append(btn, menu, sel);
     sel.classList.add('sel-native'); sel.tabIndex = -1;
     let act = -1;
     const opts = () => $$('.sel-opt', menu);
     function render() {
       const cur = sel.options[sel.selectedIndex];
-      btn.innerHTML = '<span></span>' + chevron;
-      btn.firstChild.textContent = cur ? cur.textContent : '';
+      label.textContent = cur ? cur.textContent : '';
       btn.classList.toggle('placeholder', !cur || cur.value === '');
       menu.innerHTML = '';
       Array.from(sel.options).forEach((o, i) => {
@@ -166,7 +169,7 @@
   }
   function enhanceAll(root) { $$('select', root).forEach(enhanceSelect); }
   enhanceAll(document);
-  document.addEventListener('click', e => { if (openSel && !openSel.contains(e.target)) closeSel(); });
+  document.addEventListener('click', e => { if (openSel && !e.composedPath().includes(openSel)) closeSel(); });
   document.body.addEventListener('htmx:afterSwap', e => enhanceAll(e.target));
 
   // 5 ---- click-to-sort for <table class="sortable">

@@ -211,6 +211,7 @@ textarea.input { height: auto; padding: 6px 9px; }
 .sel-btn:hover { border-color: var(--ink-3); }
 .sel-btn:focus-visible, .sel.open .sel-btn { outline: 0; border-color: var(--brand); box-shadow: 0 0 0 3px var(--ring); }
 .sel-btn.placeholder { color: var(--ink-2); }
+.sel-btn span, .sel-btn svg { pointer-events: none; }  /* every click lands on the button itself */
 .sel-btn svg { width: 13px; height: 13px; flex: none; color: var(--ink-3); transition: transform .25s var(--ease); }
 .sel.open .sel-btn svg { transform: rotate(180deg); }
 .sel-menu { position: absolute; top: calc(100% + 5px); left: 0; z-index: 55; min-width: 100%; max-height: 264px; padding: 4px; overflow: auto; background: var(--surface); box-shadow: var(--pop);
