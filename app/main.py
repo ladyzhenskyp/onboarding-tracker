@@ -8,11 +8,15 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.exception_handlers import http_exception_handler
 from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.auth import AuthMiddleware
 from app.auth import router as auth_router
+from app.deps import templates
+from app.models import utcnow
 from app.routers import (
     blockers,
     calendar,
@@ -53,6 +57,19 @@ app.include_router(team.router)
 app.include_router(insights.router)
 app.include_router(search.router)
 app.include_router(exports.router)
+
+
+@app.exception_handler(StarletteHTTPException)
+async def friendly_not_found(request: Request, exc: StarletteHTTPException):
+    """A person who follows a link to something that no longer exists (often because the demo
+    data was just reset) gets a page that says so, not raw JSON. HTMX and API callers keep
+    the plain response; app.js turns their 404 into a toast."""
+    wants_page = "text/html" in request.headers.get("accept", "")
+    if exc.status_code == 404 and wants_page and request.headers.get("HX-Request") != "true":
+        return templates.TemplateResponse(
+            request, "not_found.html", {"now": utcnow()}, status_code=404
+        )
+    return await http_exception_handler(request, exc)
 
 
 @app.get("/healthz", include_in_schema=False)

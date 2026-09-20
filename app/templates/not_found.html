@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Not found · Onboarding Tracker{% endblock %}
+{% block content %}
+<div class="panel mx-auto mt-10 max-w-lg text-center" style="padding:32px">
+  <h1>That page isn't here any more</h1>
+  {% if next_demo_reset() %}
+  <p class="caption mt-2">This is a shared demo, and its data puts itself back to the starting point on a schedule. If you were looking at something you or another visitor added, the reset removed it.</p>
+  {% else %}
+  <p class="caption mt-2">The link may be out of date, or the item may have been deleted.</p>
+  {% endif %}
+  <div class="mt-5 flex justify-center gap-2"><a class="btn" href="/">Go to the dashboard</a><a class="btn-quiet" href="/clients">All clients</a></div>
+</div>
+{% endblock %}

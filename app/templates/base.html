@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://api.fontshare.com">
   <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=switzer@400,500,600,700&display=swap">
   {# The design system (tokens, shell, components, motion) lives in one stylesheet. #}
-  <link rel="stylesheet" href="/static/app.css?v=13">
+  <link rel="stylesheet" href="/static/app.css?v=14">
   {# Tailwind Play CDN supplies layout utilities (flex, grid, spacing) without a build step,
      which is right for a portfolio demo; a production app would precompile with the CLI. #}
   <script src="https://cdn.tailwindcss.com"></script>
@@ -71,6 +71,7 @@
       <header class="topbar">
         <div class="crumb">Workspace / <b>{{ ns.label or 'Onboarding Tracker' }}</b></div>
         <button class="search-open" id="search-open" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><span>Search clients or tickets</span><kbd>/</kbd></button>
+        {% set reset_at = next_demo_reset() %}{% if reset_at %}<span class="tb-reset" id="reset-note" data-reset-at="{{ reset_at }}" hidden></span>{% endif %}
         <span class="tb-date">Today · {{ now.strftime('%b %-d') if now else '' }}</span>
         <details class="relative hidden sm:block">
           <summary class="btn-ghost">Export ▾</summary>
@@ -103,6 +104,6 @@
   </div>
   <div class="toast" id="toast" role="status"></div>
 {% endif %}
-  <script src="/static/app.js?v=13"></script>
+  <script src="/static/app.js?v=14"></script>
 </body>
 </html>

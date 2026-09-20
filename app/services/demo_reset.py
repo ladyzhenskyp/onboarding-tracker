@@ -23,7 +23,8 @@ from datetime import datetime, timedelta, timezone
 
 from app.config import settings
 
-log = logging.getLogger("demo_reset")
+# uvicorn's own logger, so these lines show up in the server log (and in Railway's log view)
+log = logging.getLogger("uvicorn.error")
 
 
 def seconds_until_next_hour(now: datetime) -> float:
@@ -47,21 +48,52 @@ def reseed() -> None:
     seed.run()
 
 
-async def nightly_loop() -> None:
-    while True:
-        now = datetime.now(timezone.utc)
-        if settings.demo_reset_schedule == "hourly":
-            delay = seconds_until_next_hour(now)
-        else:
-            delay = seconds_until(settings.demo_reset_hour_utc, now)
-        log.info("next demo reset in %.1f h", delay / 3600)
-        await asyncio.sleep(delay)
+def seconds_until_next_reset(now: datetime) -> float:
+    if settings.demo_reset_schedule == "hourly":
+        return seconds_until_next_hour(now)
+    return seconds_until(settings.demo_reset_hour_utc, now)
+
+
+def next_reset_at(now: datetime | None = None) -> datetime | None:
+    """When the data will next be put back, or None if resets are off. Templates use this
+    for the "Demo resets in N min" note and for the wording of "that item is gone"."""
+    if not settings.demo_reset_nightly:
+        return None
+    now = now or datetime.now(timezone.utc)
+    return now + timedelta(seconds=seconds_until_next_reset(now))
+
+
+RETRIES = 3
+RETRY_WAIT_SECONDS = 5
+
+
+async def reseed_with_retry(wait: float = RETRY_WAIT_SECONDS) -> bool:
+    """Run the reset, trying again if it fails.
+
+    The reset locks every table for a moment. Very occasionally a visitor's request and the
+    reset each end up waiting for a lock the other holds; Postgres breaks the tie by
+    cancelling one of them. If the reset is the one cancelled, waiting a few seconds and
+    trying again succeeds, which beats leaving the demo stale for another hour.
+    """
+    for attempt in range(1, RETRIES + 1):
         try:
             # the seed is ordinary blocking database code, so run it off the event loop
             await asyncio.to_thread(reseed)
-            log.info("demo data reset")
-        except Exception:  # never let one bad night kill the loop
-            log.exception("demo reset failed; will try again at the next run")
+            log.info("demo data reset (attempt %d)", attempt)
+            return True
+        except Exception:
+            log.exception("demo reset attempt %d of %d failed", attempt, RETRIES)
+            if attempt < RETRIES:
+                await asyncio.sleep(wait)
+    return False  # never let one bad run kill the loop; the next scheduled run will try again
+
+
+async def nightly_loop() -> None:
+    while True:
+        delay = seconds_until_next_reset(datetime.now(timezone.utc))
+        log.info("next demo reset in %.1f h", delay / 3600)
+        await asyncio.sleep(delay)
+        await reseed_with_retry()
 
 
 def start() -> asyncio.Task | None:

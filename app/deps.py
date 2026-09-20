@@ -43,6 +43,17 @@ templates.env.filters["date"] = fmt_date
 templates.env.filters["humanize"] = humanize
 
 
+def _next_demo_reset() -> str | None:
+    """ISO time of the next demo reset (UTC), or None when resets are off."""
+    from app.services.demo_reset import next_reset_at  # local import: avoids a cycle at startup
+
+    when = next_reset_at()
+    return when.strftime("%Y-%m-%dT%H:%M:%SZ") if when else None
+
+
+templates.env.globals["next_demo_reset"] = _next_demo_reset
+
+
 # ---- dependencies ----------------------------------------------------------------
 @lru_cache(maxsize=1)
 def get_risk_config() -> RiskConfig:

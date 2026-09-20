@@ -9,6 +9,7 @@
    6. dropdowns drawn in the app's own style (the real <select> stays underneath)
    7. a toast whenever a save fails, so nothing fails silently
    8. edit (reveal a row's form) and delete (confirm in place) on the client page
+   9. shared demo: a countdown before the scheduled reset, and a clear message after it
 */
 (function () {
   const $ = (s, r) => (r || document).querySelector(s);
@@ -34,10 +35,10 @@
 
   // toast (also shown after a redirect if the previous page left a message)
   let toastTimer;
-  function toast(msg) {
+  function toast(msg, ms) {
     const t = $('#toast'); if (!t) return;
     t.textContent = msg; t.classList.add('on');
-    clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('on'), 2400);
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('on'), ms || 2400);
   }
   window.toast = toast;
 
@@ -200,9 +201,36 @@
   document.addEventListener('click', e => { if (openSel && !e.composedPath().includes(openSel)) closeSel(); });
   document.body.addEventListener('htmx:afterSwap', e => enhanceAll(e.target));
 
+  // 9 ---- shared demo: warn before the scheduled data reset, and say so afterwards
+  const resetNote = $('#reset-note');
+  const resetAt = resetNote ? Date.parse(resetNote.dataset.resetAt) : NaN;
+  const WARN_MINUTES = 5;
+  function paintReset() {
+    if (isNaN(resetAt)) return;
+    const left = resetAt - Date.now();
+    if (left > WARN_MINUTES * 60000) { resetNote.hidden = true; return; }
+    resetNote.hidden = false;
+    if (left > 0) {
+      const mins = Math.ceil(left / 60000);
+      resetNote.textContent = 'Demo data resets in ' + (mins <= 1 ? 'under a minute' : mins + ' min');
+      resetNote.title = 'This is a shared demo. Anything added or changed is put back to the starting point every hour.';
+    } else {
+      resetNote.classList.add('done');
+      resetNote.innerHTML = 'Demo data was just reset. <a href="">Refresh</a>';
+    }
+  }
+  if (resetNote) { paintReset(); setInterval(paintReset, 15000); }
+  const resetJustHappened = () => !isNaN(resetAt) && Date.now() > resetAt;
+
   // 7 ---- never fail silently: if the server rejects or can't be reached, say so
   document.body.addEventListener('htmx:responseError', e => {
     const code = e.detail.xhr ? e.detail.xhr.status : 0;
+    if (code === 404) {  // the row is gone: deleted by someone else, or removed by the demo reset
+      toast(resetNote && resetJustHappened()
+        ? 'The demo data just reset, so that item is gone. Refresh to continue.'
+        : 'That item no longer exists' + (resetNote ? ' (the demo data resets every hour)' : '') + '. Refresh to continue.', 6000);
+      return;
+    }
     toast(code === 422 ? "That couldn't be saved. Check the fields and try again." : "Something went wrong saving that (error " + code + ").");
   });
   document.body.addEventListener('htmx:sendError', () => toast("Couldn't reach the server. Check your connection and try again."));
