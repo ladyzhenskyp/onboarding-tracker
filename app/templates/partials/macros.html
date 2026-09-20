@@ -32,3 +32,17 @@
 {% macro section_title(text, count=None) -%}
 <div class="sec-h"><h2>{{ text }}</h2>{% if count is not none %}<span class="n">{{ count }}</span>{% endif %}</div>
 {%- endmacro %}
+
+
+{# Edit + delete icon buttons for a row. Edit reveals the hidden form with id `edit_id`
+   (app.js); delete asks once more in place ("Delete?") before it posts. #}
+{% macro row_actions(edit_id, delete_url, hx, what) -%}
+<span class="row-actions">
+  <button type="button" class="icon-btn" data-edit="{{ edit_id }}" title="Edit {{ what }}" aria-label="Edit {{ what }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4"/></svg></button>
+  <form hx-post="{{ delete_url }}" {{ hx|safe }} method="post" action="{{ delete_url }}" class="inline"><button class="icon-btn icon-btn-danger" data-confirm title="Delete {{ what }}" aria-label="Delete {{ what }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button></form>
+</span>
+{%- endmacro %}
+
+{% macro person_select(name, users, selected_id, placeholder) -%}
+<select name="{{ name }}" class="input"><option value="">{{ placeholder }}</option>{% for u in users %}<option value="{{ u.id }}" {% if u.id == selected_id %}selected{% endif %}>{{ u.name }}</option>{% endfor %}</select>
+{%- endmacro %}

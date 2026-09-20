@@ -8,7 +8,16 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from app.deps import get_db, get_now, get_risk_config, opt_int, templates
-from app.models import BLOCKER_SEVERITIES, Blocker, Client, Milestone, Stage, User
+from app.models import (
+    BLOCKER_SEVERITIES,
+    MILESTONE_STATUSES,
+    Blocker,
+    Client,
+    Milestone,
+    Note,
+    Stage,
+    User,
+)
 from app.services import actions
 from app.services import queries as q
 from app.services.risk import RiskConfig, evaluate_client
@@ -83,6 +92,7 @@ def _detail_context(
         "timeline": _timeline(client, stages, now),
         "users": list(db.scalars(select(User).where(User.is_active).order_by(User.name))),
         "severities": BLOCKER_SEVERITIES,
+        "milestone_statuses": MILESTONE_STATUSES,
         "open_blockers": [b for b in client.blockers if b.is_open],
         "closed_blockers": [b for b in client.blockers if not b.is_open],
         "flash": flash,
@@ -295,4 +305,135 @@ def client_add_note(
     author = db.get(User, opt_int(author_id)) if opt_int(author_id) else None
     if body.strip():
         actions.add_note(db, client, body=body, now=now, author=author)
+    return _after_action(request, db, client_id, now, cfg)
+
+
+# ---- edit / delete --------------------------------------------------------------------
+def _owned(db: Session, model, item_id: int, client_id: int, label: str):
+    """Fetch a row and make sure it belongs to this client (so /clients/1/notes/99/delete
+    can never touch another client's note)."""
+    item = db.get(model, item_id)
+    if item is None or item.client_id != client_id:
+        raise HTTPException(status_code=404, detail=f"{label} not found")
+    return item
+
+
+def _person(db: Session, raw: str | None) -> User | None:
+    """An untouched "(optional)" dropdown is submitted as "", which means nobody."""
+    uid = opt_int(raw)
+    return db.get(User, uid) if uid else None
+
+
+@router.post("/{client_id}/milestones/{milestone_id}/edit", name="client_edit_milestone")
+def client_edit_milestone(
+    client_id: int,
+    milestone_id: int,
+    request: Request,
+    title: str = Form(...),
+    due_date: date = Form(...),
+    status: str = Form(...),
+    owner_id: str | None = Form(None),
+    db: Session = Depends(get_db),
+    cfg: RiskConfig = Depends(get_risk_config),
+    now: datetime = Depends(get_now),
+):
+    m = _owned(db, Milestone, milestone_id, client_id, "Milestone")
+    if status not in MILESTONE_STATUSES or not title.strip():
+        raise HTTPException(status_code=422, detail="Invalid milestone")
+    actions.update_milestone(
+        db, m, title=title, due_date=due_date, status=status, now=now, owner=_person(db, owner_id)
+    )
+    return _after_action(request, db, client_id, now, cfg)
+
+
+@router.post("/{client_id}/milestones/{milestone_id}/delete", name="client_delete_milestone")
+def client_delete_milestone(
+    client_id: int,
+    milestone_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    cfg: RiskConfig = Depends(get_risk_config),
+    now: datetime = Depends(get_now),
+):
+    actions.delete_milestone(db, _owned(db, Milestone, milestone_id, client_id, "Milestone"))
+    return _after_action(request, db, client_id, now, cfg)
+
+
+@router.post("/{client_id}/blockers/{blocker_id}/edit", name="client_edit_blocker")
+def client_edit_blocker(
+    client_id: int,
+    blocker_id: int,
+    request: Request,
+    title: str = Form(...),
+    severity: str = Form(...),
+    description: str = Form(""),
+    external_ref: str = Form(""),
+    owner_id: str | None = Form(None),
+    db: Session = Depends(get_db),
+    cfg: RiskConfig = Depends(get_risk_config),
+    now: datetime = Depends(get_now),
+):
+    b = _owned(db, Blocker, blocker_id, client_id, "Blocker")
+    if severity not in BLOCKER_SEVERITIES or not title.strip():
+        raise HTTPException(status_code=422, detail="Invalid blocker")
+    actions.update_blocker(
+        db,
+        b,
+        title=title,
+        severity=severity,
+        description=description,
+        owner=_person(db, owner_id),
+        external_ref=external_ref,
+    )
+    return _after_action(request, db, client_id, now, cfg)
+
+
+@router.post("/{client_id}/blockers/{blocker_id}/delete", name="client_delete_blocker")
+def client_delete_blocker(
+    client_id: int,
+    blocker_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    cfg: RiskConfig = Depends(get_risk_config),
+    now: datetime = Depends(get_now),
+):
+    actions.delete_blocker(db, _owned(db, Blocker, blocker_id, client_id, "Blocker"))
+    return _after_action(request, db, client_id, now, cfg)
+
+
+def _editable_note(db: Session, note_id: int, client_id: int) -> Note:
+    note = _owned(db, Note, note_id, client_id, "Note")
+    if note.is_system:  # stage moves are the audit trail
+        raise HTTPException(status_code=403, detail="Stage history can't be changed")
+    return note
+
+
+@router.post("/{client_id}/notes/{note_id}/edit", name="client_edit_note")
+def client_edit_note(
+    client_id: int,
+    note_id: int,
+    request: Request,
+    body: str = Form(...),
+    author_id: str | None = Form(None),
+    db: Session = Depends(get_db),
+    cfg: RiskConfig = Depends(get_risk_config),
+    now: datetime = Depends(get_now),
+):
+    note = _editable_note(db, note_id, client_id)
+    if not body.strip():
+        raise HTTPException(status_code=422, detail="A note can't be empty")
+    actions.update_note(db, note, body=body, author=_person(db, author_id))
+    return _after_action(request, db, client_id, now, cfg)
+
+
+@router.post("/{client_id}/notes/{note_id}/delete", name="client_delete_note")
+def client_delete_note(
+    client_id: int,
+    note_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    cfg: RiskConfig = Depends(get_risk_config),
+    now: datetime = Depends(get_now),
+):
+    actions.delete_note(db, _editable_note(db, note_id, client_id))
     return _after_action(request, db, client_id, now, cfg)

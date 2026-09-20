@@ -77,3 +77,72 @@ def add_note(
     db.add(n)
     db.commit()
     return n
+
+
+# ---- edit / delete ----------------------------------------------------------------
+def update_milestone(
+    db: Session,
+    milestone: Milestone,
+    *,
+    title: str,
+    due_date: date,
+    status: str,
+    now: datetime,
+    owner: User | None = None,
+) -> Milestone:
+    milestone.title = title.strip()
+    milestone.due_date = due_date
+    milestone.owner = owner
+    # the table has a rule: status is "done" exactly when completed_at is set,
+    # so the two are always changed together
+    if status == "done" and milestone.status != "done":
+        milestone.completed_at = now
+    elif status != "done":
+        milestone.completed_at = None
+    milestone.status = status
+    db.commit()
+    return milestone
+
+
+def delete_milestone(db: Session, milestone: Milestone) -> None:
+    # blockers may point at this milestone; unlink them rather than deleting them
+    for blocker in db.query(Blocker).filter(Blocker.milestone_id == milestone.id):
+        blocker.milestone_id = None
+    db.delete(milestone)
+    db.commit()
+
+
+def update_blocker(
+    db: Session,
+    blocker: Blocker,
+    *,
+    title: str,
+    severity: str,
+    description: str | None = None,
+    owner: User | None = None,
+    external_ref: str | None = None,
+) -> Blocker:
+    blocker.title = title.strip()
+    blocker.severity = severity
+    blocker.description = (description or "").strip() or None
+    blocker.owner = owner
+    blocker.external_ref = (external_ref or "").strip() or None
+    db.commit()
+    return blocker
+
+
+def delete_blocker(db: Session, blocker: Blocker) -> None:
+    db.delete(blocker)
+    db.commit()
+
+
+def update_note(db: Session, note: Note, *, body: str, author: User | None = None) -> Note:
+    note.body = body.strip()
+    note.author = author
+    db.commit()
+    return note
+
+
+def delete_note(db: Session, note: Note) -> None:
+    db.delete(note)
+    db.commit()

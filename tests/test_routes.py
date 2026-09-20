@@ -260,3 +260,96 @@ def test_add_forms_accept_blank_optional_dropdowns(client):
     # and a chosen owner still works
     r = client.post("/clients/3/notes", data={"body": "with author", "author_id": "2"}, headers=hx)
     assert r.status_code == 200 and "with author" in r.text
+
+
+# ---- edit / delete -------------------------------------------------------------------
+HX = {"HX-Request": "true"}
+
+
+def _ids(model, client_id):
+    with SessionLocal() as db:
+        return list(db.scalars(select(model.id).where(model.client_id == client_id)))
+
+
+def test_edit_and_delete_milestone(client):
+    from app.models import Milestone
+
+    client.post(
+        "/clients/3/milestones", data={"title": "Draft", "due_date": "2030-02-01", "owner_id": ""}
+    )
+    with SessionLocal() as db:
+        mid = db.scalar(select(Milestone.id).where(Milestone.title == "Draft"))
+    r = client.post(
+        f"/clients/3/milestones/{mid}/edit",
+        data={"title": "Final", "due_date": "2030-03-01", "status": "done", "owner_id": "2"},
+        headers=HX,
+    )
+    assert r.status_code == 200 and "Final" in r.text
+    with SessionLocal() as db:
+        m = db.get(Milestone, mid)
+        assert (m.title, m.status, m.owner_id) == ("Final", "done", 2) and m.completed_at
+    # re-opening clears completed_at (the table requires the two to agree)
+    client.post(
+        f"/clients/3/milestones/{mid}/edit",
+        data={"title": "Final", "due_date": "2030-03-01", "status": "in_progress", "owner_id": ""},
+    )
+    with SessionLocal() as db:
+        m = db.get(Milestone, mid)
+        assert m.status == "in_progress" and m.completed_at is None and m.owner_id is None
+    assert client.post(f"/clients/3/milestones/{mid}/delete", headers=HX).status_code == 200
+    assert mid not in _ids(Milestone, 3)
+
+
+def test_edit_and_delete_blocker_changes_health(client):
+    client.post(
+        "/clients/3/blockers",
+        data={"title": "Minor thing", "severity": "low", "owner_id": ""},
+    )
+    with SessionLocal() as db:
+        bid = db.scalar(select(Blocker.id).where(Blocker.title == "Minor thing"))
+    r = client.post(
+        f"/clients/3/blockers/{bid}/edit",
+        data={
+            "title": "Major thing",
+            "severity": "critical",
+            "external_ref": "IMPL-999",
+            "description": "now serious",
+            "owner_id": "",
+        },
+        headers=HX,
+    )
+    assert r.status_code == 200 and "IMPL-999" in r.text
+    assert "Why red" in r.text  # a critical blocker turns the account red straight away
+    assert client.post(f"/clients/3/blockers/{bid}/delete", headers=HX).status_code == 200
+    assert bid not in _ids(Blocker, 3)
+
+
+def test_edit_and_delete_note_but_not_stage_history(client):
+    from app.models import Note
+
+    client.post("/clients/3/notes", data={"body": "typo heer", "author_id": ""})
+    with SessionLocal() as db:
+        nid = db.scalar(select(Note.id).where(Note.body == "typo heer"))
+    r = client.post(
+        f"/clients/3/notes/{nid}/edit", data={"body": "typo fixed", "author_id": "1"}, headers=HX
+    )
+    assert r.status_code == 200 and "typo fixed" in r.text and "typo heer" not in r.text
+    assert client.post(f"/clients/3/notes/{nid}/delete", headers=HX).status_code == 200
+    assert nid not in _ids(Note, 3)
+
+    # stage moves are the audit trail: visible, but not editable or deletable
+    client.post("/clients/3/stage/advance")
+    with SessionLocal() as db:
+        sys_id = db.scalar(
+            select(Note.id).where(Note.client_id == 3, Note.body.like("Stage changed%"))
+        )
+    assert client.post(f"/clients/3/notes/{sys_id}/delete").status_code == 403
+    assert client.post(f"/clients/3/notes/{sys_id}/edit", data={"body": "x"}).status_code == 403
+
+
+def test_cannot_touch_another_clients_rows(client):
+    from app.models import Note
+
+    other = _ids(Note, 4)[0]
+    assert client.post(f"/clients/3/notes/{other}/delete").status_code == 404
+    assert other in _ids(Note, 4)

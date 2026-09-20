@@ -2,8 +2,20 @@
    posts with HTMX and swaps this whole block, so the health badge, timeline, tables
    and activity log all stay in sync without a page reload. Without JavaScript the
    same forms still work: the server answers with a redirect instead. #}
-{% from "partials/macros.html" import health_badge, severity, reasons, days_bar, section_title %}
+{% from "partials/macros.html" import health_badge, severity, reasons, days_bar, section_title, row_actions, person_select %}
 {% set hx = 'hx-target="#client-body" hx-swap="outerHTML"' %}
+{% macro blocker_edit_row(b) %}
+      <tr class="edit-row" id="edit-b-{{ b.id }}" hidden><td colspan="6" class="td">
+        <form hx-post="/clients/{{ client.id }}/blockers/{{ b.id }}/edit" {{ hx|safe }} method="post" action="/clients/{{ client.id }}/blockers/{{ b.id }}/edit" class="grid gap-2 sm:grid-cols-3">
+          <input name="title" class="input sm:col-span-3" value="{{ b.title }}" placeholder="Title" required>
+          <select name="severity" class="input">{% for s in severities %}<option value="{{ s }}" {% if s == b.severity %}selected{% endif %}>{{ s|capitalize }}</option>{% endfor %}</select>
+          <input name="external_ref" class="input" value="{{ b.external_ref or '' }}" placeholder="Ticket ref, e.g. IMPL-142">
+          {{ person_select('owner_id', users, b.owner_id, 'Owner (optional)') }}
+          <textarea name="description" rows="2" class="input sm:col-span-3" placeholder="Description (optional)">{{ b.description or '' }}</textarea>
+          <div class="flex gap-2 sm:col-span-3"><button class="btn btn-sm">Save changes</button><button type="button" class="btn-ghost btn-sm" data-edit-cancel>Cancel</button></div>
+        </form>
+      </td></tr>
+{% endmacro %}
 <div id="client-body">
 {% if flash %}<div class="mb-3 rounded-md border border-health-amber/30 bg-health-ambersoft px-3 py-2 text-sm text-health-amber">{{ flash }}</div>{% endif %}
 
@@ -69,8 +81,17 @@
         <td class="td whitespace-nowrap">{{ m.due_date|date }}</td>
         <td class="td whitespace-nowrap">{% if m.is_overdue(today) %}<span class="chip chip-critical">Overdue</span>{% elif m.status == 'done' %}<span class="text-health-green">✓ Done</span>{% else %}{{ m.status|humanize }}{% endif %}</td>
         <td class="td whitespace-nowrap">{{ m.owner.name if m.owner else '—' }}</td>
-        <td class="td whitespace-nowrap text-right">{% if m.status != 'done' %}<form hx-post="/clients/{{ client.id }}/milestones/{{ m.id }}/complete" {{ hx|safe }} method="post" action="/clients/{{ client.id }}/milestones/{{ m.id }}/complete"><button class="btn-quiet btn-sm">Mark done</button></form>{% endif %}</td>
+        <td class="td whitespace-nowrap text-right"><span class="cell-actions">{% if m.status != 'done' %}<form hx-post="/clients/{{ client.id }}/milestones/{{ m.id }}/complete" {{ hx|safe }} method="post" action="/clients/{{ client.id }}/milestones/{{ m.id }}/complete"><button class="btn-quiet btn-sm">Mark done</button></form>{% endif %}{{ row_actions('edit-m-%d' % m.id, '/clients/%d/milestones/%d/delete' % (client.id, m.id), hx, 'milestone') }}</span></td>
       </tr>
+      <tr class="edit-row" id="edit-m-{{ m.id }}" hidden><td colspan="5" class="td">
+        <form hx-post="/clients/{{ client.id }}/milestones/{{ m.id }}/edit" {{ hx|safe }} method="post" action="/clients/{{ client.id }}/milestones/{{ m.id }}/edit" class="grid gap-2 sm:grid-cols-3">
+          <input name="title" class="input sm:col-span-3" value="{{ m.title }}" placeholder="Title" required>
+          <input name="due_date" type="date" class="input" value="{{ m.due_date.isoformat() }}" required>
+          <select name="status" class="input">{% for st in milestone_statuses %}<option value="{{ st }}" {% if st == m.status %}selected{% endif %}>{{ st|humanize }}</option>{% endfor %}</select>
+          {{ person_select('owner_id', users, m.owner_id, 'Owner (optional)') }}
+          <div class="flex gap-2 sm:col-span-3"><button class="btn btn-sm">Save changes</button><button type="button" class="btn-ghost btn-sm" data-edit-cancel>Cancel</button></div>
+        </form>
+      </td></tr>
       {% else %}<tr><td colspan="5" class="empty">No milestones yet — add the first one below.</td></tr>{% endfor %}
       </tbody>
     </table></div>
@@ -85,7 +106,7 @@
   </div>
 
   {# ---- blockers ---- #}
-  <div>
+  <div id="blockers">
     {{ section_title("Blockers", open_blockers|length) }}
     <div class="card overflow-x-auto"><table class="sortable w-full text-sm">
       <thead><tr><th class="th th-l">Title</th><th class="th">Sev</th><th class="th num">Age</th><th class="th th-l">Owner</th><th class="th">Ref</th><th class="th th-l"></th></tr></thead>
@@ -97,11 +118,13 @@
         <td class="td num">{{ b.age_days(now) }}d</td>
         <td class="td whitespace-nowrap">{{ b.owner.name if b.owner else '—' }}</td>
         <td class="td whitespace-nowrap font-mono text-xs text-ink-3">{{ b.external_ref or '' }}</td>
-        <td class="td whitespace-nowrap text-right"><form hx-post="/clients/{{ client.id }}/blockers/{{ b.id }}/resolve" {{ hx|safe }} method="post" action="/clients/{{ client.id }}/blockers/{{ b.id }}/resolve"><button class="btn-quiet btn-sm">Resolve</button></form></td>
+        <td class="td whitespace-nowrap text-right"><span class="cell-actions"><form hx-post="/clients/{{ client.id }}/blockers/{{ b.id }}/resolve" {{ hx|safe }} method="post" action="/clients/{{ client.id }}/blockers/{{ b.id }}/resolve"><button class="btn-quiet btn-sm">Resolve</button></form>{{ row_actions('edit-b-%d' % b.id, '/clients/%d/blockers/%d/delete' % (client.id, b.id), hx, 'blocker') }}</span></td>
       </tr>
+      {{ blocker_edit_row(b) }}
       {% else %}<tr><td colspan="6" class="empty">No open blockers.</td></tr>{% endfor %}
       {% for b in closed_blockers %}
-      <tr class="text-ink-3"><td class="td line-through">{{ b.title }}</td><td class="td">{{ severity(b.severity) }}</td><td class="td num">{{ b.age_days(now) }}d</td><td class="td whitespace-nowrap">{{ b.owner.name if b.owner else '—' }}</td><td class="td font-mono text-xs">{{ b.external_ref or '' }}</td><td class="td whitespace-nowrap text-right text-xs">resolved {{ b.resolved_at|date }}</td></tr>
+      <tr class="text-ink-3"><td class="td line-through">{{ b.title }}</td><td class="td">{{ severity(b.severity) }}</td><td class="td num">{{ b.age_days(now) }}d</td><td class="td whitespace-nowrap">{{ b.owner.name if b.owner else '—' }}</td><td class="td font-mono text-xs">{{ b.external_ref or '' }}</td><td class="td whitespace-nowrap text-right text-xs"><span class="cell-actions">resolved {{ b.resolved_at|date }}{{ row_actions('edit-b-%d' % b.id, '/clients/%d/blockers/%d/delete' % (client.id, b.id), hx, 'blocker') }}</span></td></tr>
+      {{ blocker_edit_row(b) }}
       {% endfor %}
       </tbody>
     </table></div>
@@ -127,9 +150,16 @@
 </form>
 <ol class="card mt-2 divide-y divide-line-soft text-sm">
   {% for n in client.notes %}
-  <li class="grid gap-1 px-3 py-2 sm:grid-cols-[160px_1fr]">
+  <li class="note grid gap-1 px-3 py-2 sm:grid-cols-[160px_1fr_auto]">
     <div class="text-xs text-ink-3">{{ n.created_at|date }}{% if n.author %}<br>{{ n.author.name }}{% endif %}</div>
-    <div class="{{ 'text-ink-2 italic' if n.body.startswith('Stage changed') }}">{{ n.body }}</div>
+    <div class="{{ 'text-ink-2 italic' if n.is_system }}">{{ n.body }}</div>
+    {# stage moves are the audit trail, so they can't be edited or deleted #}
+    {% if not n.is_system %}<div>{{ row_actions('edit-n-%d' % n.id, '/clients/%d/notes/%d/delete' % (client.id, n.id), hx, 'note') }}</div>
+    <form id="edit-n-{{ n.id }}" hidden hx-post="/clients/{{ client.id }}/notes/{{ n.id }}/edit" {{ hx|safe }} method="post" action="/clients/{{ client.id }}/notes/{{ n.id }}/edit" class="edit-row flex flex-col gap-2 sm:col-span-3 sm:flex-row sm:items-start">
+      <textarea name="body" rows="2" class="input flex-1" required>{{ n.body }}</textarea>
+      <div class="sm:w-44">{{ person_select('author_id', users, n.author_id, 'Author (optional)') }}</div>
+      <button class="btn btn-sm">Save changes</button><button type="button" class="btn-ghost btn-sm" data-edit-cancel>Cancel</button>
+    </form>{% endif %}
   </li>
   {% else %}<li class="empty">No notes yet — the stage log and your updates will appear here.</li>{% endfor %}
 </ol>

@@ -8,6 +8,7 @@
    5. click-to-sort tables
    6. dropdowns drawn in the app's own style (the real <select> stays underneath)
    7. a toast whenever a save fails, so nothing fails silently
+   8. edit (reveal a row's form) and delete (confirm in place) on the client page
 */
 (function () {
   const $ = (s, r) => (r || document).querySelector(s);
@@ -206,6 +207,43 @@
   });
   document.body.addEventListener('htmx:sendError', () => toast("Couldn't reach the server. Check your connection and try again."));
 
+  // 8 ---- edit + delete on rows
+  // Edit: a pencil with data-edit="<id>" reveals that (hidden) form; Cancel hides it again.
+  // Delete: a button marked data-confirm asks once more, in place, before it submits.
+  document.addEventListener('click', e => {
+    const ed = e.target.closest('[data-edit]');
+    if (ed) {
+      const target = document.getElementById(ed.dataset.edit); if (!target) return;
+      const show = target.hidden;
+      $$('.edit-row').forEach(r => { r.hidden = true; });  // one at a time
+      $$('tr.editing').forEach(r => r.classList.remove('editing'));
+      target.hidden = !show;
+      if (show) {
+        const row = ed.closest('tr'); if (row) row.classList.add('editing');
+        const first = target.querySelector('input:not([type=hidden]), textarea');
+        if (first) { first.focus({ preventScroll: true }); if (first.select) first.select(); }
+      }
+      return;
+    }
+    const cancel = e.target.closest('[data-edit-cancel]');
+    if (cancel) {
+      const box = cancel.closest('.edit-row'); box.hidden = true;
+      const f = box.matches('form') ? box : box.querySelector('form');
+      if (f) { f.reset(); $$('select', f).forEach(x => x.dispatchEvent(new Event('change'))); }
+      $$('tr.editing').forEach(r => r.classList.remove('editing'));
+      return;
+    }
+    const del = e.target.closest('[data-confirm]');
+    if (del && !del.classList.contains('armed')) {
+      e.preventDefault();
+      const original = del.innerHTML;
+      del.classList.add('armed'); del.textContent = 'Delete?';
+      const disarm = () => { del.classList.remove('armed'); del.innerHTML = original; };
+      const timer = setTimeout(disarm, 3500);
+      del.addEventListener('blur', () => { clearTimeout(timer); disarm(); }, { once: true });
+    }
+  });
+
   // 5 ---- click-to-sort for <table class="sortable">
   const rank = { 'badge-red': 0, 'badge-amber': 1, 'badge-green': 2, 'chip-critical': 0, 'chip-high': 1, 'chip-medium': 2, 'chip-low': 3 };
   function key(td) {
@@ -231,12 +269,14 @@
           th.setAttribute('aria-sort', dir);
           const tbody = table.tBodies[0];
           const rows = Array.from(tbody.rows).filter(r => r.cells.length > 1);
+          // remember each row's edit form so it stays directly under its row after sorting
+          const partner = new Map(rows.map(r => [r, r.nextElementSibling && r.nextElementSibling.classList.contains('edit-row') ? r.nextElementSibling : null]));
           rows.sort((a, b) => {
             const ka = key(a.cells[i]), kb = key(b.cells[i]);
             const c = typeof ka === 'number' && typeof kb === 'number' ? ka - kb : String(ka).localeCompare(String(kb));
             return dir === 'ascending' ? c : -c;
           });
-          rows.forEach(r => tbody.appendChild(r));
+          rows.forEach(r => { tbody.appendChild(r); if (partner.get(r)) tbody.appendChild(partner.get(r)); });
         });
       });
     });

@@ -13,6 +13,9 @@ if TYPE_CHECKING:
     from app.models.user import User
 
 
+SYSTEM_NOTE_PREFIX = "Stage changed"
+
+
 class Note(Base):
     __tablename__ = "notes"
     __table_args__ = (Index("ix_notes_client_created", "client_id", "created_at"),)
@@ -22,6 +25,12 @@ class Note(Base):
     author_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     body: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+    @property
+    def is_system(self) -> bool:
+        """Stage moves are logged as notes by services/stages.py. They are the audit trail,
+        so the UI shows them but does not offer to edit or delete them."""
+        return self.body.startswith(SYSTEM_NOTE_PREFIX)
 
     client: Mapped[Client] = relationship(back_populates="notes")
     author: Mapped[User | None] = relationship()
