@@ -106,7 +106,10 @@
     if (sel.dataset.enhanced || sel.multiple) return;
     sel.dataset.enhanced = '1';
     const wrap = document.createElement('div');
-    wrap.className = 'sel' + (sel.classList.contains('w-auto') ? ' sel-auto' : '');
+    // the wrapper is what the page lays out now, so it takes over the select's sizing
+    // classes (w-auto, sm:w-44, flex-1 ...); otherwise it would default to full width
+    const layout = Array.from(sel.classList).filter(c => c !== 'input');
+    wrap.className = ['sel', sel.classList.contains('w-auto') ? 'sel-auto' : '', ...layout].join(' ').trim();
     sel.parentNode.insertBefore(wrap, sel);
     const btn = document.createElement('button');
     btn.type = 'button'; btn.className = 'sel-btn'; btn.setAttribute('aria-haspopup', 'listbox'); btn.setAttribute('aria-expanded', 'false');
