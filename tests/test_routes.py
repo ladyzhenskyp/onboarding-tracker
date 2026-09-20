@@ -232,3 +232,31 @@ def test_filters_accept_the_blank_fields_a_browser_form_sends(client):
     assert client.get("/insights?owner_id=abc").status_code == 422  # present but malformed
     r = client.get("/blockers?status=open&severity=&owner_id=&client_id=")
     assert r.status_code == 200
+
+
+def test_add_forms_accept_blank_optional_dropdowns(client):
+    """A browser submits an untouched "Owner (optional)" dropdown as "", not as missing."""
+    hx = {"HX-Request": "true"}
+    r = client.post("/clients/3/notes", data={"body": "blank author", "author_id": ""}, headers=hx)
+    assert r.status_code == 200 and "blank author" in r.text
+    r = client.post(
+        "/clients/3/milestones",
+        data={"title": "Blank owner milestone", "due_date": "2030-01-15", "owner_id": ""},
+        headers=hx,
+    )
+    assert r.status_code == 200 and "Blank owner milestone" in r.text
+    r = client.post(
+        "/clients/3/blockers",
+        data={
+            "title": "Blank owner blocker",
+            "severity": "medium",
+            "description": "",
+            "external_ref": "",
+            "owner_id": "",
+        },
+        headers=hx,
+    )
+    assert r.status_code == 200 and "Blank owner blocker" in r.text
+    # and a chosen owner still works
+    r = client.post("/clients/3/notes", data={"body": "with author", "author_id": "2"}, headers=hx)
+    assert r.status_code == 200 and "with author" in r.text

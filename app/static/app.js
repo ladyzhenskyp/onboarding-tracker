@@ -7,6 +7,7 @@
    4. client peek panel (rows marked data-peek load /clients/<id>/peek via HTMX)
    5. click-to-sort tables
    6. dropdowns drawn in the app's own style (the real <select> stays underneath)
+   7. a toast whenever a save fails, so nothing fails silently
 */
 (function () {
   const $ = (s, r) => (r || document).querySelector(s);
@@ -170,6 +171,14 @@
         if (i >= 0) { act = i; paintAct(); }
       }
     });
+    // A required dropdown left empty: the browser would point its "fill out this field"
+    // bubble at the hidden native select (a 1px dot in a corner). Show it on the button instead.
+    sel.addEventListener('invalid', e => {
+      e.preventDefault();
+      wrap.classList.add('sel-error'); btn.focus({ preventScroll: true });
+      toast('Choose an option from "' + label.textContent.trim() + '" first');
+    });
+    sel.addEventListener('change', () => wrap.classList.remove('sel-error'));
     sel.addEventListener('change', render);
     if (sel.form) sel.form.addEventListener('reset', () => setTimeout(render));
     render();
@@ -189,6 +198,13 @@
   enhanceAll(document);
   document.addEventListener('click', e => { if (openSel && !e.composedPath().includes(openSel)) closeSel(); });
   document.body.addEventListener('htmx:afterSwap', e => enhanceAll(e.target));
+
+  // 7 ---- never fail silently: if the server rejects or can't be reached, say so
+  document.body.addEventListener('htmx:responseError', e => {
+    const code = e.detail.xhr ? e.detail.xhr.status : 0;
+    toast(code === 422 ? "That couldn't be saved. Check the fields and try again." : "Something went wrong saving that (error " + code + ").");
+  });
+  document.body.addEventListener('htmx:sendError', () => toast("Couldn't reach the server. Check your connection and try again."));
 
   // 5 ---- click-to-sort for <table class="sortable">
   const rank = { 'badge-red': 0, 'badge-amber': 1, 'badge-green': 2, 'chip-critical': 0, 'chip-high': 1, 'chip-medium': 2, 'chip-low': 3 };

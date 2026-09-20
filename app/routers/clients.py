@@ -7,7 +7,7 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from app.deps import get_db, get_now, get_risk_config, templates
+from app.deps import get_db, get_now, get_risk_config, opt_int, templates
 from app.models import BLOCKER_SEVERITIES, Blocker, Client, Milestone, Stage, User
 from app.services import actions
 from app.services import queries as q
@@ -208,7 +208,7 @@ def client_add_blocker(
     severity: str = Form(...),
     description: str = Form(""),
     external_ref: str = Form(""),
-    owner_id: int | None = Form(None),
+    owner_id: str | None = Form(None),
     db: Session = Depends(get_db),
     cfg: RiskConfig = Depends(get_risk_config),
     now: datetime = Depends(get_now),
@@ -216,7 +216,8 @@ def client_add_blocker(
     client = _load_client(db, client_id)
     if severity not in BLOCKER_SEVERITIES:
         raise HTTPException(status_code=400, detail="Invalid severity")
-    owner = db.get(User, owner_id) if owner_id else None
+    # an untouched "Owner (optional)" dropdown is submitted as "", which means nobody
+    owner = db.get(User, opt_int(owner_id)) if opt_int(owner_id) else None
     actions.add_blocker(
         db,
         client,
@@ -252,13 +253,14 @@ def client_add_milestone(
     request: Request,
     title: str = Form(...),
     due_date: date = Form(...),
-    owner_id: int | None = Form(None),
+    owner_id: str | None = Form(None),
     db: Session = Depends(get_db),
     cfg: RiskConfig = Depends(get_risk_config),
     now: datetime = Depends(get_now),
 ):
     client = _load_client(db, client_id)
-    owner = db.get(User, owner_id) if owner_id else None
+    # an untouched "Owner (optional)" dropdown is submitted as "", which means nobody
+    owner = db.get(User, opt_int(owner_id)) if opt_int(owner_id) else None
     actions.add_milestone(db, client, title=title, due_date=due_date, owner=owner)
     return _after_action(request, db, client_id, now, cfg)
 
@@ -284,13 +286,13 @@ def client_add_note(
     client_id: int,
     request: Request,
     body: str = Form(...),
-    author_id: int | None = Form(None),
+    author_id: str | None = Form(None),
     db: Session = Depends(get_db),
     cfg: RiskConfig = Depends(get_risk_config),
     now: datetime = Depends(get_now),
 ):
     client = _load_client(db, client_id)
-    author = db.get(User, author_id) if author_id else None
+    author = db.get(User, opt_int(author_id)) if opt_int(author_id) else None
     if body.strip():
         actions.add_note(db, client, body=body, now=now, author=author)
     return _after_action(request, db, client_id, now, cfg)
