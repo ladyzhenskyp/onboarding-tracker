@@ -18,6 +18,10 @@
   --side-w: 216px;
 }
 
+/* `hidden` must always win. Without this, a layout class such as Tailwind's `flex` sets
+   `display` and quietly un-hides the element (it did, on the note edit forms). */
+[hidden] { display: none !important; }
+
 html { background: var(--page); }
 body { font-size: 13px; line-height: 1.45; color: var(--ink); background: var(--page); -webkit-font-smoothing: antialiased; }
 /* Tailwind's reset (loaded after this file) flattens headings, so these carry a class-level selector */
