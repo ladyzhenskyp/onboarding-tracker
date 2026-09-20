@@ -11,7 +11,7 @@
 </div>
 
 {# ---- filter bar: every field is a query parameter, so the view is a URL you can share ---- #}
-<form method="get" action="/insights" class="mt-4 flex flex-wrap items-end gap-2 text-sm">
+<form method="get" action="/insights" data-autosubmit class="mt-4 flex flex-wrap items-end gap-2 text-sm">
   <label class="grid gap-1"><span class="kicker">Owner</span>
     <select name="owner_id" class="input w-auto"><option value="">All owners</option>{% for u in users %}<option value="{{ u.id }}" {% if filters.owner_id == u.id %}selected{% endif %}>{{ u.name }}</option>{% endfor %}</select></label>
   <label class="grid gap-1"><span class="kicker">Segment</span>
@@ -20,7 +20,7 @@
     <select name="stage" class="input w-auto"><option value="">All stages</option>{% for s in stages %}<option value="{{ s.key }}" {% if filters.stage == s.key %}selected{% endif %}>{{ s.name }}</option>{% endfor %}</select></label>
   <label class="grid gap-1"><span class="kicker">Kickoff from</span><input type="date" name="kickoff_from" class="input w-auto" value="{{ filters.kickoff_from or '' }}"></label>
   <label class="grid gap-1"><span class="kicker">Kickoff to</span><input type="date" name="kickoff_to" class="input w-auto" value="{{ filters.kickoff_to or '' }}"></label>
-  <button class="btn">Apply</button>
+  <noscript><button class="btn">Apply</button></noscript>
   {% if filtered %}<a href="/insights" class="btn-ghost">Reset</a>{% endif %}
 </form>
 

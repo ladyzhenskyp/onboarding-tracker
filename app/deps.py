@@ -7,6 +7,7 @@ from decimal import Decimal
 from functools import lru_cache
 from pathlib import Path
 
+from fastapi import HTTPException
 from fastapi.templating import Jinja2Templates
 
 from app.config import settings
@@ -53,4 +54,27 @@ def get_now() -> datetime:
     return utcnow()
 
 
-__all__ = ["get_db", "get_now", "get_risk_config", "templates"]
+# ---- query parsing for filter forms ---------------------------------------------
+# A browser form always sends every field, so an untouched filter arrives as an
+# empty string ("?owner_id=&kickoff_from="). Typed parameters like `int | None`
+# reject "" with a 422 error, so filter routes take strings and convert here:
+# blank means "no filter"; a value that is present but malformed is still a 422.
+def opt_int(value: str | None) -> int | None:
+    if value is None or not value.strip():
+        return None
+    try:
+        return int(value)
+    except ValueError:
+        raise HTTPException(status_code=422, detail=f"Not a whole number: {value!r}") from None
+
+
+def opt_date(value: str | None) -> date | None:
+    if value is None or not value.strip():
+        return None
+    try:
+        return date.fromisoformat(value.strip())
+    except ValueError:
+        raise HTTPException(status_code=422, detail=f"Not a date (YYYY-MM-DD): {value!r}") from None
+
+
+__all__ = ["get_db", "get_now", "get_risk_config", "opt_date", "opt_int", "templates"]

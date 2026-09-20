@@ -8,13 +8,13 @@ filtered set of accounts.
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from app.deps import get_db, get_now, get_risk_config, templates
+from app.deps import get_db, get_now, get_risk_config, opt_date, opt_int, templates
 from app.models import CLIENT_SEGMENTS, Blocker, User
 from app.services import queries as q
 from app.services.risk import RiskConfig
@@ -31,15 +31,21 @@ def _short(stage_name: str) -> str:
 @router.get("/insights", name="insights")
 def insights(
     request: Request,
-    owner_id: int | None = Query(None),
+    owner_id: str | None = Query(None),
     segment: str | None = Query(None),
     stage: str | None = Query(None),
-    kickoff_from: date | None = Query(None),
-    kickoff_to: date | None = Query(None),
+    kickoff_from: str | None = Query(None),
+    kickoff_to: str | None = Query(None),
     db: Session = Depends(get_db),
     now: datetime = Depends(get_now),
     cfg: RiskConfig = Depends(get_risk_config),
 ):
+    # the form sends untouched filters as "", so parse leniently (see deps.opt_int)
+    owner_id, kickoff_from, kickoff_to = (
+        opt_int(owner_id),
+        opt_date(kickoff_from),
+        opt_date(kickoff_to),
+    )
     stages = ordered_stages(db)
     health = q.client_health(db, now, cfg)
 

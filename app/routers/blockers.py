@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from app.deps import get_db, get_now, templates
+from app.deps import get_db, get_now, opt_int, templates
 from app.models import BLOCKER_SEVERITIES, Blocker, Client, User
 
 router = APIRouter(tags=["blockers"])
@@ -17,11 +17,13 @@ def blockers(
     request: Request,
     status: str = Query("open", pattern="^(open|closed|all)$"),
     severity: str | None = Query(None),
-    owner_id: int | None = Query(None),
-    client_id: int | None = Query(None),
+    owner_id: str | None = Query(None),
+    client_id: str | None = Query(None),
     db: Session = Depends(get_db),
     now: datetime = Depends(get_now),
 ):
+    # the form sends untouched filters as "", so parse leniently (see deps.opt_int)
+    owner_id, client_id = opt_int(owner_id), opt_int(client_id)
     stmt = select(Blocker).options(
         selectinload(Blocker.client), selectinload(Blocker.owner), selectinload(Blocker.milestone)
     )

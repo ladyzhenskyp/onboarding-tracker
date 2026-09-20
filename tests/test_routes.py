@@ -223,3 +223,12 @@ def test_client_peek_is_a_fragment_with_link_to_full_page(client):
     assert "<html" not in r.text  # a fragment for the side panel, not a page
     assert "Open full page" in r.text and 'href="/clients/1"' in r.text
     assert client.get("/clients/9999/peek").status_code == 404
+
+
+def test_filters_accept_the_blank_fields_a_browser_form_sends(client):
+    # an untouched <select> or date field is submitted as "", which must mean "no filter"
+    r = client.get("/insights?owner_id=2&segment=&stage=&kickoff_from=&kickoff_to=")
+    assert r.status_code == 200 and "completed stage visit" in r.text
+    assert client.get("/insights?owner_id=abc").status_code == 422  # present but malformed
+    r = client.get("/blockers?status=open&severity=&owner_id=&client_id=")
+    assert r.status_code == 200

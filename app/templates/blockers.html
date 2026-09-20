@@ -3,12 +3,12 @@
 {% block title %}Blockers · Onboarding Tracker{% endblock %}
 {% block content %}
 <h1>Blockers <span class="text-[13px] font-normal text-ink-3">{{ rows|length }}</span></h1>
-<form method="get" action="/blockers" class="mt-4 flex flex-wrap items-center gap-2">
+<form method="get" action="/blockers" data-autosubmit class="mt-4 flex flex-wrap items-center gap-2">
   <select name="status" class="input w-auto">{% for s in ['open','closed','all'] %}<option value="{{ s }}" {% if filters.status == s %}selected{% endif %}>{{ s|capitalize }}</option>{% endfor %}</select>
   <select name="severity" class="input w-auto"><option value="">Any severity</option>{% for s in severities %}<option value="{{ s }}" {% if filters.severity == s %}selected{% endif %}>{{ s|capitalize }}</option>{% endfor %}</select>
   <select name="owner_id" class="input w-auto"><option value="">Any owner</option>{% for u in users %}<option value="{{ u.id }}" {% if filters.owner_id == u.id %}selected{% endif %}>{{ u.name }}</option>{% endfor %}</select>
   <select name="client_id" class="input w-auto"><option value="">Any client</option>{% for c in clients %}<option value="{{ c.id }}" {% if filters.client_id == c.id %}selected{% endif %}>{{ c.name }}</option>{% endfor %}</select>
-  <button class="btn">Filter</button>
+  <noscript><button class="btn">Filter</button></noscript>
   <a href="/blockers" class="btn-ghost">Reset</a>
 </form>
 <div class="card mt-3 overflow-x-auto">

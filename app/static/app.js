@@ -147,7 +147,11 @@
       render(); closeSel(); btn.focus({ preventScroll: true });
     }
     btn.addEventListener('click', () => (wrap.classList.contains('open') ? closeSel() : open()));
-    menu.addEventListener('click', e => { const li = e.target.closest('.sel-opt'); if (li) choose(li); });
+    menu.addEventListener('click', e => {
+      // inside a <label>, the browser would pass this click on to the button and reopen the list
+      e.preventDefault();
+      const li = e.target.closest('.sel-opt'); if (li) choose(li);
+    });
     menu.addEventListener('mousemove', e => { const li = e.target.closest('.sel-opt'); if (li) { act = opts().indexOf(li); paintAct(); } });
     wrap.addEventListener('keydown', e => {
       const isOpen = wrap.classList.contains('open');
@@ -167,6 +171,17 @@
     if (sel.form) sel.form.addEventListener('reset', () => setTimeout(render));
     render();
   }
+  // filter bars marked data-autosubmit apply as soon as a value changes (no Apply click needed)
+  document.addEventListener('change', e => {
+    const form = e.target.closest && e.target.closest('form[data-autosubmit]');
+    if (form) form.requestSubmit ? form.requestSubmit() : form.submit();
+  });
+  // keep shared URLs short: untouched filters are left out of the address
+  document.addEventListener('submit', e => {
+    if (!e.target.matches('form[data-autosubmit]')) return;
+    Array.from(e.target.elements).forEach(el => { if (el.name && el.value === '') el.disabled = true; });
+  });
+
   function enhanceAll(root) { $$('select', root).forEach(enhanceSelect); }
   enhanceAll(document);
   document.addEventListener('click', e => { if (openSel && !e.composedPath().includes(openSel)) closeSel(); });
