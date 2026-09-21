@@ -139,7 +139,7 @@ psql "$DATABASE_URL" -v today="'$(date +%F)'" -v now="'$(date '+%F %H:%M')'" \
 |---|---|
 | `ModuleNotFoundError: app` when running `alembic` or `scripts/seed.py` | Run from the repo root with the venv active. |
 | `Stages table is empty` from the seed script | Run `alembic upgrade head` first. |
-| Pages render unstyled | Tailwind/HTMX/fonts load from CDNs; check internet access. |
+| A new Tailwind class has no effect | Run `python scripts/build_css.py` (needs Node) and commit `app/static/vendor/tailwind.css`. |
 | A test fails with `database is locked` | Another process has `tracker.db` open; tests use their own file, but stop the dev server if in doubt. |
 | `if>` prompt in the terminal after pasting commands | zsh treated a `#` comment as a command. Press Ctrl‑C and paste commands without comments. |
 

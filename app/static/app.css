@@ -47,7 +47,11 @@ body { font-size: 13px; line-height: 1.45; color: var(--ink); background: var(--
   box-shadow: 0 0 0 1px var(--line), 0 1px 2px rgba(0, 0, 0, .04); pointer-events: none; view-transition-name: nav-ind; }
 .nav .count { margin-left: auto; font-size: 11px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
 .nav .count.hot { padding: 0 5px; color: var(--red); background: var(--red-t); }
-.side-foot { margin-top: auto; display: flex; align-items: center; gap: 8px; padding: 12px 8px 6px; border-top: 1px solid var(--line); color: var(--ink-2); font-size: 12px; }
+.side-note { margin: auto 0 -4px; padding: 0 8px; color: var(--ink-2); font-size: 11px; line-height: 1.4; }
+.side-note a, .demo-note a { text-decoration: underline; text-underline-offset: 2px; }
+.side-note a:hover, .demo-note a:hover { color: var(--brand); }
+.demo-note { display: none; padding: 0 24px 20px; color: var(--ink-2); font-size: 11px; }
+.side-foot { display: flex; align-items: center; gap: 8px; padding: 12px 8px 6px; border-top: 1px solid var(--line); color: var(--ink-2); font-size: 12px; }
 .side-foot button { margin-left: auto; color: var(--ink-3); font-size: 12px; }
 .side-foot button:hover { color: var(--ink); }
 
@@ -358,6 +362,7 @@ details > summary { list-style: none; } details > summary::-webkit-details-marke
 @media (max-width: 900px) {
   .shell { grid-template-columns: minmax(0, 1fr); }
   .side { display: none; }
+  .demo-note { display: block; }
   .crumb, .tb-date { display: none; }
   .topbar { padding: 0 14px; }
   .search-open { width: auto; flex: 1; margin-left: 0; }

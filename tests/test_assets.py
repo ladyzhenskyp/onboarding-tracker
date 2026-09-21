@@ -12,7 +12,35 @@ import httpx
 import pytest
 
 TEMPLATES = Path(__file__).resolve().parent.parent / "app" / "templates"
-URL_RE = re.compile(r'(?:src|href)="(https://[^"]+)"')
+# Only assets the page loads (<script>, <link>), not ordinary links a visitor may click.
+URL_RE = re.compile(r'<(?:script|link)\b[^>]*?(?:src|href)="(https://[^"]+)"')
+
+
+def test_only_the_font_is_loaded_from_another_site():
+    """Scripts and styles are served by the app itself; the Switzer font is the one exception."""
+    hosts = {u.split("/")[2] for u in _external_urls()}
+    assert hosts <= {"api.fontshare.com"}, hosts
+
+
+def test_compiled_tailwind_matches_the_templates():
+    """Fails when a template uses a new class and scripts/build_css.py was not run again."""
+    import importlib.util
+
+    root = TEMPLATES.parent.parent
+    spec = importlib.util.spec_from_file_location("build_css", root / "scripts" / "build_css.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    first_line = (root / "app" / "static" / "vendor" / "tailwind.css").read_text().splitlines()[0]
+    assert f"sources:{mod.source_hash()}" in first_line, "run: python scripts/build_css.py"
+
+
+def test_vendored_scripts_are_served(client):
+    for path in (
+        "/static/vendor/tailwind.css",
+        "/static/vendor/htmx-2.0.4.min.js",
+        "/static/vendor/chart-4.4.1.umd.js",
+    ):
+        assert client.get(path).status_code == 200, path
 
 
 def _external_urls() -> set[str]:

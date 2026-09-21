@@ -8,31 +8,11 @@
   <link rel="preconnect" href="https://api.fontshare.com">
   <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=switzer@400,500,600,700&display=swap">
   {# The design system (tokens, shell, components, motion) lives in one stylesheet. #}
-  <link rel="stylesheet" href="/static/app.css?v=14">
-  {# Tailwind Play CDN supplies layout utilities (flex, grid, spacing) without a build step,
-     which is right for a portfolio demo; a production app would precompile with the CLI. #}
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    // Same colours as the CSS variables in app.css, so utilities like `text-ink-2` match.
-    // Corners are square everywhere by design, so every radius except `full` is zero.
-    tailwind.config = {
-      theme: {
-        borderRadius: { none: '0', sm: '0', DEFAULT: '0', md: '0', lg: '0', xl: '0', '2xl': '0', full: '9999px' },
-        extend: {
-          colors: {
-            page: '#f6f7fb', surface: '#ffffff', mint: '#ecebfb', chip: '#eff0f6',
-            line: { DEFAULT: '#e5e7f0', soft: '#eff0f6', strong: '#cdd0de' },
-            ink: { DEFAULT: '#1c2033', 2: '#5a6078', 3: '#9095ab' },
-            brand: { DEFAULT: '#453fb0', dark: '#3a3499', soft: '#ecebfb' },
-            health: { red: '#b4534b', redsoft: '#fdf1f0', redfill: '#ea9a93', amber: '#96703a', ambersoft: '#fdf6e7', amberfill: '#ecc47e', green: '#3d8263', greensoft: '#edf7f1', greenfill: '#8fd0ae' },
-            sev: { high: '#b0693a', highsoft: '#fdf1e8' },
-          },
-          fontFamily: { sans: ['Switzer', '-apple-system', 'Segoe UI', 'Helvetica', 'Arial', 'sans-serif'] },
-        },
-      },
-    }
-  </script>
-  <script src="https://unpkg.com/htmx.org@2.0.4" crossorigin="anonymous"></script>
+  <link rel="stylesheet" href="/static/app.css?v=15">
+  {# Tailwind utilities (flex, grid, spacing) are compiled ahead of time by scripts/build_css.py, and
+     htmx is served from this app, so no script comes from a CDN. Only the font is external. #}
+  <link rel="stylesheet" href="/static/vendor/tailwind.css?v=15">
+  <script src="/static/vendor/htmx-2.0.4.min.js"></script>
   {% block head %}{% endblock %}
 </head>
 {% set path = request.url.path %}
@@ -61,6 +41,7 @@
         <a href="{{ href }}" {% if loop.index0 == ns.active %}aria-current="page"{% endif %}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="{{ icon }}"/></svg>{{ label }}</a>
         {% endfor %}
       </nav>
+      <p class="side-note">Fictional demo data · <a href="https://patricialadyzhensky.com/privacy.html" target="_blank" rel="noopener">Privacy</a></p>
       <div class="side-foot">
         <span class="av">D</span>Demo user
         <form method="post" action="/logout"><button type="submit">Sign out</button></form>
@@ -84,6 +65,7 @@
       <main class="content">
         {% block content %}{% endblock %}
       </main>
+      <p class="demo-note">Fictional demo data · <a href="https://patricialadyzhensky.com/privacy.html" target="_blank" rel="noopener">Privacy</a></p>
     </div>
   </div>
 
@@ -104,6 +86,6 @@
   </div>
   <div class="toast" id="toast" role="status"></div>
 {% endif %}
-  <script src="/static/app.js?v=14"></script>
+  <script src="/static/app.js?v=15"></script>
 </body>
 </html>

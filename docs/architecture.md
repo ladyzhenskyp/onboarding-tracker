@@ -69,10 +69,14 @@ of the page. This gives "single-page app" feel with zero client-side state and
 no JavaScript build. The alternative (React + a JSON API) would have doubled
 the codebase for a project whose substance is the data model.
 
-**Tailwind CSS** — utility classes, loaded from a CDN so there is no build step.
-Design tokens (colours, fonts) are declared once in `base.html`. A production
-deployment would precompile Tailwind; for a portfolio demo the CDN is the
-right trade-off and is noted in the template.
+**Tailwind CSS** — utility classes, compiled ahead of time into
+`app/static/vendor/tailwind.css` by `python scripts/build_css.py` (the only step
+that needs Node; the output is committed, so running and deploying do not).
+HTMX and Chart.js are served from `app/static/vendor/` too. The app therefore
+loads no script from another site, which keeps visitors' IP addresses away from
+third parties; the Switzer font (Fontshare) is the one exception, because its
+licence does not allow copying the font files into a public repository. A test
+fails if a template uses a new class and the CSS was not rebuilt.
 
 **Chart.js** — three small charts on the dashboard; data is embedded as JSON
 by the route, so charts and tables always agree.
@@ -128,7 +132,6 @@ variables (a local `.env` for development, real env vars in production):
 
 ## What I would change at scale
 
-- Precompile Tailwind and pin HTMX/Chart.js locally instead of CDNs.
 - Cache health results (materialised view or a nightly job) once the at-risk
   query stops being cheap enough to run on every dashboard load.
 - Move timestamps to `TIMESTAMPTZ` once SQLite is dropped.
